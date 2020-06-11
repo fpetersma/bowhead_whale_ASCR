@@ -156,7 +156,7 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
   result <- optim(par = par, fn = fn, method = method, hessian = FALSE,
                   control = list(maxit = maxit, fnscale = -1, trace = TRACE, 
                                  REPORT = 1, factr = 1e8),
-                  # lower = c(-1000), # this gives 0 on log and logit link
+                  # lower = c(-1000), # this gives 0 on log and logit link 
                   # upper = c(100), # this gives 2.7e10 on log and 1 on logit
                   dat = dat)
   # return(result)
