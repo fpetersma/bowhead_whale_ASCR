@@ -77,8 +77,8 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
   par <- unlist(par)
   names(par) <- gsub(".*\\.", "", names(par))
   ## TO KEEP SOME PARAMETERS FIXED, USE LINE BELOW TO SELECT WHICH PARAMETERS TO ESTIMATE
-  # par <- par[names(par) %in% c("g0", "sigma", "(Intercept)")] # USE ONLY FOR SIMULATIONS
-  # par <- par[names(par) %in% c("U", "B", "Q", "(Intercept)")] # USE ONLY FOR SIMULATIONS
+  # par <- par[names(par) %in% c("g0", "sigma" , "kappa", "(Intercept)", "dist_to_coast", "dist_to_coast2")] # USE ONLY FOR SIMULATIONS
+  # par <- par[names(par) %in% c("U", "B", "Q", "mu_s", "beta_r", "(Intercept)")] # USE ONLY FOR SIMULATIONS
   
   # Create a matrix of distances
   distances <- apply(dat$detectors, 1, function(z) {
@@ -94,7 +94,7 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
   
   # Check whether density is constant
   if (length(vars) == 1) {
-    CONSTANT_DENSITY <- TRUE
+    CONSTANT_DENSITY <- FALSE
   } else {
     CONSTANT_DENSITY <- FALSE
   }
@@ -155,9 +155,11 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
   # Use bounds to limit search space to sensible space
   result <- optim(par = par, fn = fn, method = method, hessian = FALSE,
                   control = list(maxit = maxit, fnscale = -1, trace = TRACE, 
-                                 REPORT = 1, factr = 1e8),
-                  # lower = c(-1000), # this gives 0 on log and logit link
-                  # upper = c(100), # this gives 2.7e10 on log and 1 on logit
+                                 REPORT = 1, factr = 1e11),
+                  # lower = c(U = -5, B = -5, Q = log(1), kappa = log(1), beta_r = log(10), sd_r = log(0.1), mu_s = log(70),  sd_s = log(1)), # this gives 0 on log and logit link
+                  # upper = c(U = 5, B = 5, Q = log(10), kappa = log(100), beta_r = log(20), sd_r = log(10),   mu_s  =log(130) , sd_s = log(20) ), # this gives 2.7e10 on log and 1 on logit
+                  # # lower = c(g0 = -5, sigma = log(5000), kappa = log(1)),#, beta_r = log(10), sd_r = log(0.1), mu_s = log(70),  sd_s = log(1)), # this gives 0 on log and logit link
+                  # upper = c(g0 = 5, sigma = log(50000), kappa = log(100)),#, beta_r = log(20), sd_r = log(10),   mu_s  =log(130) , sd_s = log(20) ), # this gives 2.7e10 on log and 1 on logit
                   dat = dat)
   # return(result)
   

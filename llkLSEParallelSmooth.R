@@ -264,6 +264,8 @@
       
       # Derive the probability density for the number of detections given the rate
       llk_n <- dpois(n_call, rate, log = TRUE)
+      if (llk_n == -Inf) llk_n <- -6000 # set to -6000 if -Inf since L-BFGS-B does
+      # not accept non-real values
       # microbenchmark(llk_n <- n_call * log(rate) - rate - log(factorial(n_call)))
       
       # Clear environment
@@ -514,9 +516,9 @@
         # })
         # })
         part_source_level <- truncnorm::dtruncnorm(x = matrix(source_levels, nrow = n_grid, 
-                                              ncol = n_sl, byrow = TRUE), 
-                                   a = lower_s, b = upper_s, mean = mu_s, 
-                                   sd = sd_s)
+                                                              ncol = n_sl, byrow = TRUE), 
+                                                   a = lower_s, b = upper_s, mean = mu_s, 
+                                                   sd = sd_s)
         part_source_level <- log(part_source_level)
         
         # Add the two subpart to create part 3
