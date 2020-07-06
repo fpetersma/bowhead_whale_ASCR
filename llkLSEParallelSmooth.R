@@ -83,7 +83,7 @@
   
   # Extract parameters and convert to the real scale (add errors to ensure 
   # correct domain)
-  if (det_function == "jano") {
+  if (det_function == "janoschek" | det_function == "logistic") {
     U <- exp(par["U"]) / (1 + exp(par["U"])) # logit link 
     B <- exp(par["B"]) #+ error # log link
     Q <- exp(par["Q"]) + 1 #+ error # log link + 1
@@ -163,7 +163,7 @@
       cl <- makeCluster(no_cores)
       
       # Export required data and functions to all clusters
-      hidden_functions <- c(".gJano", ".detected", ".densityGAM", ".gHN")
+      hidden_functions <- c(".gSNR", ".detected", ".densityGAM", ".gHN")
       clusterExport(cl, list = c(ls(), hidden_functions), envir = environment()) 
       
       # Turn noise random in a t(data frame) and then into a list to create a 
@@ -195,9 +195,10 @@
         
         # Derive the associated detection probabilities 
         # system.time({
-        if (det_function == "jano") {
-          det_probs <- .gJano(snr = E_snr, 
-                              par = par_det)
+        if (det_function == "janoschek" | det_function == "logistic") {
+          det_probs <- .gSNR(snr = E_snr, 
+                             par = par_det,
+                             type = det_function)
         } else if (det_function == "half-normal") {
           # Create same distance array for every source level
           distance_array <- array(data = NA,
@@ -282,7 +283,7 @@
     cl <- makeCluster(no_cores)
     
     # Export required data and functions to all clusters
-    hidden_functions <- c(".gJano", ".detected", ".densityGAM", ".gHN")
+    hidden_functions <- c(".gSNR", ".detected", ".densityGAM", ".gHN")
     # package_functions <- c("dvonmises")
     clusterExport(cl, list = c(ls(), hidden_functions), envir = environment()) 
     
@@ -357,9 +358,10 @@
         
         # Derive the associated detection probabilities 
         # system.time({
-        if (det_function == "jano") {
-          det_probs <- .gJano(snr = E_snr, 
-                              par = par_det)
+        if (det_function == "janoschek" | det_function = "logistic") {
+          det_probs <- .gSNR(snr = E_snr, 
+                             par = par_det,
+                             type = det_function)
         } else if (det_function == "half-normal") {
           # Create same distance array for every source level
           distance_array <- array(data = NA,
