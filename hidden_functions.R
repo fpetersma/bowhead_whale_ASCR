@@ -28,7 +28,33 @@
   return(as.vector(D))
 }
 
-
+.gSNR <- function(snr, par, type = "logistic") {
+  # Description:
+  #   
+  
+  # Inputs:
+  #   
+  # Outputs:
+  
+  U <- par["U"]
+  B <- par["B"]
+  Q <- par["Q"]
+  L <- 0
+  
+  # Input checks
+  if (U < 0 | U > 1) {stop("The upper limit U should be between 0 and 1!")}
+  if (B <= 0) {stop("The inflection point parameter B should be positive!")}
+  if (Q <= 1) {stop("The growth parameter Q should be larger than 1!")}
+  
+  if (type == "logistic") {
+      g <- U / (1 + exp(-Q * (snr - B)))
+  }
+  if (type == "janoschek")
+  {
+    g <- U - (U - L) * exp(-(B / 1000) * (snr ^ Q)) # B divided by 1000 to improve convergence
+  }
+  return(g)
+}
 
 .gJano <- function(snr, par) {
   # Description:

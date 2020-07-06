@@ -61,16 +61,16 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
   
   # Check which detection function is to be used, and make sure detection rate
   # or probability at distance = 0 is correctly named. 
-  if (dat$det_function == "jano") {
+  if (dat$det_function == "janoschek" | dat$det_function == "logistic") {
     CORRECT_PAR <- all(c("U", "B", "Q") %in% names(par[["par_det"]]))
     if (!CORRECT_PAR) {
-      stop("Incorrect start parameters specified for Janoschek detection function.")
+      stop("Incorrect start parameters specified for the SNR detection function.")
     }
   } else if (dat$det_function == "half-normal") {
     CORRECT_PAR <- all(c("g0", "sigma") %in% names(par[["par_det"]]))
   } else {
     stop(paste0("Detection function specification is ", dat$det_function,
-                ", but should be 'jano' or 'half-normal"))
+                ", but should be 'janoscheck', 'logistic' or 'half-normal'"))
   }
   
   # Turn par into a named vector with the correct names (optim() requires a vector)
@@ -166,7 +166,7 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
   if (CONSTANT_DENSITY) {
     ## Deriving the Horvitz-Thompson-like estimator for constant density
     n_call <- nrow(dat$det_hist)
-    if (dat$det_function == "jano") {
+    if (dat$det_function == "janoschek" | dat$det_function == "logistic") {
       par_det <- c(exp(result$par["U"]) / (1 + exp(result$par["U"])),
                    exp(result$par["B"]),
                    exp(result$par["Q"]) + 1)

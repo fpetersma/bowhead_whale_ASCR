@@ -45,7 +45,7 @@ f_density <- D ~ 1
 
 # set det function!
 # det_function <- "half-normal"
-det_function <- "jano"
+det_function <- "janoschek"
 
 ## Set all parameters on the real scale. Only density is on the log scale
 # Parameters for density function
@@ -54,7 +54,7 @@ par_dens <- c("(Intercept)" = -1.5)
 # par_dens <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
 # par_dens <- c("(Intercept)" = -2.2, "depth" = -1.8, "depth2" = 1.8)
 
-if (det_function == "jano") {
+if (det_function == "janoschek") {
   # Detection function parameters
   par_det <- c(U = 0.8, # should be in (0, 1]
                B = 2, # should be in (0, Inf)
@@ -148,7 +148,7 @@ for (B_loop in B_options) {
     # Set the area parameter
     A <- 8.774550 # km^2
     
-    det_function <- "jano"
+    det_function <- "janoschek"
     # det_function <- "half-normal"
     
     dat <- list(det_hist = det_hist,
@@ -166,7 +166,7 @@ for (B_loop in B_options) {
     
     
     # Start values for detection function
-    if(det_function == "jano") {
+    if(det_function == "janoschek") {
       par_det_start <- c(U = log(0.8 / (1 - 0.8)), # should be in (0, 1]
                          B = log(B_loop), # should be in (0, Inf)
                          Q = log(Q_loop - 1)) # should be in (1, Inf)
@@ -236,7 +236,7 @@ for (B_loop in B_options) {
     
     # Check which detection function is to be used, and make sure detection rate
     # or probability at distance = 0 is correctly named. 
-    if (dat$det_function == "jano") {
+    if (dat$det_function == "janoschek") {
       CORRECT_PAR <- all(c("U", "B", "Q") %in% names(par[["par_det"]]))
       if (!CORRECT_PAR) {
         stop("Incorrect start parameters specified for Janoschek detection function.")

@@ -46,7 +46,7 @@ f_density <- D ~ 1
 
 # set det function!
 det_function <- "half-normal"
-# det_function <- "jano"
+# det_function <- "janoschek"
 
 ## Set all parameters on the real scale. Only density is on the log scale
 # Parameters for density function
@@ -55,7 +55,7 @@ par_dens <- c("(Intercept)" = -2.5)
 # par_dens <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
 # par_dens <- c("(Intercept)" = -2.2, "depth" = -1.8, "depth2" = 1.8)
 
-if (det_function == "jano") {
+if (det_function == "janoschek") {
   # Detection function parameters
   par_det <- c(U = 0.8, # should be in (0, 1]
                B = 1.5, # should be in (0, Inf)
@@ -140,7 +140,7 @@ min_no_detections <- 2
 # Set the area parameter
 A <- 8.774550 # km^2
 
-# det_function <- "jano"
+# det_function <- "janoschek"
 det_function <- "half-normal"
 
 dat <- list(det_hist = det_hist,
@@ -158,7 +158,7 @@ dat <- list(det_hist = det_hist,
 
 
 # Start values for detection function
-if(det_function == "jano") {
+if(det_function == "janoschek") {
   par_det_start <- c(U = log(0.8 / (1 - 0.8)), # should be in (0, 1]
                      B = log(1.5), # should be in (0, Inf)
                      Q = log(2.8 - 1)) # should be in (1, Inf)
