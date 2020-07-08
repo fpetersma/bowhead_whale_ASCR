@@ -22,8 +22,8 @@ simulateData <- function(par, f_density, cov_density, detectors, A,
   library(circular)
   library(truncnorm)
   
-  source("Scripts/Function_v2/hidden_functions.R")
-  source("Scripts/Function_v2/plotDensity.R")
+  source("Scripts/Bowhead Whales/hidden_functions.R")
+  source("Scripts/Bowhead Whales/plotDensity.R")
   
   ########################### Input checks #####################################
   
@@ -126,10 +126,10 @@ simulateData <- function(par, f_density, cov_density, detectors, A,
   
   ## Derive detection probabilities based on snr (set all negative snr to zero
 
-  if (det_function == "jano") {
-    det_probs <- .gJano(snr = snr, par = par_det)
-  } else if (det_function == "half-normal") {
+  if (det_function == "half-normal") {
     det_probs <- .gHN(distances = distances, par = par_det)
+  } else {
+    det_probs <- .gSNR(snr = snr, par = par_det, type = det_function)
   }
   
   # Create detection history consisting of 1's and 0's
