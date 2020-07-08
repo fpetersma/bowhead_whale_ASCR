@@ -37,7 +37,7 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
   library(matrixStats)
   library(circular)
   
-  source("Scripts/Function_v2/HTLikeEstimator.R")
+  source("Scripts/Bowhead Whales/HTLikeEstimator.R")
   
   # Input checks
   if (class(dat) != "list") {
@@ -153,7 +153,7 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
   ######################## Fit using optim() ###################################
   
   # Use bounds to limit search space to sensible space
-  result <- optim(par = par, fn = fn, method = method, hessian = FALSE,
+  result <- optim(par = par, fn = fn, method = method, hessian = TRUE,
                   control = list(maxit = maxit, fnscale = -1, trace = TRACE, 
                                  REPORT = 1, factr = 1e11),
                   # lower = c(U = -5, B = -5, Q = log(1), kappa = log(1), beta_r = log(10), sd_r = log(0.1), mu_s = log(70),  sd_s = log(1)), # this gives 0 on log and logit link
@@ -219,9 +219,13 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
     upper <- pars + 1.96 * se
     
     link <- rep("log", K)
-    if (dat$det_function %in% c("HN", "HR")) {
-      link[names(par) == "g0"] <- "logit"
+    link[1] <- "logit"
+    if (dat$det_function == "janoschek") {
+      link[names(par) == "Q"] <- "log*"
     }
+    # if (dat$det_function %in% c("HN", "HR")) {
+    #   link[names(par) == "g0"] <- "logit"
+    # }
     # if (USE_SNR) {
     #   link[names(param) == "b1"] <- "identity"
     # }
@@ -240,6 +244,10 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
         real_pars[i] <- 1 / (1 + exp(-pars[i]))
         real_lower[i] <- 1 / (1 + exp(-lower[i]))
         real_upper[i] <- 1 / (1 + exp(-upper[i]))
+      } else if (link[i] == "log*") {
+        real_pars[i] <- exp(pars[i]) + 1
+        real_lower[i] <- exp(lower[i]) + 1
+        real_upper[i] <- exp(upper[i]) + 1
       } else {
         real_pars[i] <- exp(pars[i])
         real_lower[i] <- exp(lower[i])
@@ -261,18 +269,21 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
   aicc <- aic + 2 * K * (K + 1) / (n - K - 1) # Burnham & Anderson (2002)
   bic <- -2 * result$value + K * log(n)
   
-  # Calculate effective sample area (a)
-  if (det_function == "HHN") {
-    det_probs <- .p(distances = distances, det0 = estimates["lambda0", 2], 
-                    sigma = estimates["sigma", 2], det_function = det_function)
-  } else if (det_function == "HN") {
-    det_probs <- .p(distances = distances, det0 = estimates["g0", 2], 
-                    sigma = estimates["sigma", 2], det_function = det_function)
-  }
-  p. <- .detected(det_probs = det_probs, min_no_detections = min_no_detections)
-  esa <- sum(p. * D$density) / sum(D$density)
+  # # Calculate effective sample area (a)
+  # if (det_function == "HHN") {
+  #   det_probs <- .p(distances = distances, det0 = estimates["lambda0", 2], 
+  #                   sigma = estimates["sigma", 2], det_function = det_function)
+  # } else if (det_function == "HN") {
+  #   det_probs <- .p(distances = distances, det0 = estimates["g0", 2], 
+  #                   sigma = estimates["sigma", 2], det_function = det_function)
+  # }
+  # p. <- .detected(det_probs = det_probs, min_no_detections = min_no_detections)
+  # esa <- sum(p. * D$density) / sum(D$density)
+  #
+  # rm(det_probs, p.)
   
-  rm(det_probs, p.)
+  
+  esa <- "STILL NEEDS WORK"
   
   ## Finalise the process
   cat("Finished the SCR fitting.\n")
@@ -285,7 +296,7 @@ bwASCR <- function(dat, par, method = "L-BFGS", maxit = 100, TRACE = TRUE,
                  covariance_matrix = covariance_matrix, density = D, 
                  det_function = dat$det_function, design_matrix = design, 
                  ESA = esa, optim_result = result, data = dat)
-  class(output) <- "bw_scr_model"
+  class(output) <- "bwASCR_model"
   
   return(output)
 }

@@ -7,14 +7,14 @@ library("readr")
 library("matrixStats")
 library("truncnorm")
 
-source("Scripts/Function_v2/hidden_functions.R")
-source("Scripts/Function_v2/plotDensity.R")
-source("Scripts/Function_v2/simulateData.R")
-source("Scripts/Function_v2/bwASCR.R")
-source("Scripts/Function_v2/llkLSEParallelSmooth.R")
+source("Scripts/Bowhead Whales/hidden_functions.R")
+source("Scripts/Bowhead Whales/plotDensity.R")
+source("Scripts/Bowhead Whales/simulateData.R")
+source("Scripts/Bowhead Whales/bwASCR.R")
+source("Scripts/Bowhead Whales/llkLSEParallelSmooth.R")
 
 ## Define some constants
-seed <- 121
+seed <- 333
 sample_size <- 30
 min_no_detections <- 2
 max_depth <- 150
@@ -45,7 +45,8 @@ f_density <- D ~ 1
 # f_density <- D ~ depth + depth2
 
 # set det function!
-det_function <- "half-normal"
+# det_function <- "half-normal"
+det_function <- "logistic"
 # det_function <- "janoschek"
 
 ## Set all parameters on the real scale. Only density is on the log scale
@@ -60,6 +61,11 @@ if (det_function == "janoschek") {
   par_det <- c(U = 0.8, # should be in (0, 1]
                B = 1.5, # should be in (0, Inf)
                Q = 2.8) # should be in (1, Inf)
+} else if (det_function == "logistic") {
+  # Detection function parameters
+  par_det <- c(U = 0.8, # should be in (0, 1]
+               B = 10, # should be in (0, Inf)
+               Q = 0.2) # should be in (0, Inf)
 } else {
   par_det <- c(g0 = 0.7,
                sigma = 15000)
@@ -81,7 +87,7 @@ par_rl <- c(beta = 15,
             sigma = 1)
 
 # Bearing distribution
-par_bear <- c(kappa = 10)
+par_bear <- c(kappa = 15)
 
 par <- list(par_dens = par_dens,
             par_det = par_det,
@@ -91,7 +97,7 @@ par <- list(par_dens = par_dens,
             par_bear = par_bear)
 
 # Set seed
-# set.seed(seed)
+set.seed(seed)
 
 ################ Run the simulation using simulateData.R #######################
 dat_sim <- simulateData(par = par, f_density = f_density, cov_density = cov_density,
@@ -141,7 +147,8 @@ min_no_detections <- 2
 A <- 8.774550 # km^2
 
 # det_function <- "janoschek"
-det_function <- "half-normal"
+det_function <- "logistic"
+# det_function <- "half-normal"
 
 dat <- list(det_hist = det_hist,
             detectors = detectors,
@@ -162,6 +169,11 @@ if(det_function == "janoschek") {
   par_det_start <- c(U = log(0.8 / (1 - 0.8)), # should be in (0, 1]
                      B = log(1.5), # should be in (0, Inf)
                      Q = log(2.8 - 1)) # should be in (1, Inf)
+} else if (det_function == "logistic") {
+  # Detection function parameters
+  par_det_start <- c(U = log(0.8 / (1 - 0.8)), # should be in (0, 1]
+                     B = log(10), # should be in (0, Inf)
+                     Q = log(0.2)) # should be in (0, Inf)
 } else {
   par_det_start <- c(g0 = log(0.7 / (1 - 0.7)),
                      sigma = log(15000))

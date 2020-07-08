@@ -83,10 +83,16 @@
   
   # Extract parameters and convert to the real scale (add errors to ensure 
   # correct domain)
-  if (det_function == "janoschek" | det_function == "logistic") {
+  if (det_function == "janoschek" ) {
     U <- exp(par["U"]) / (1 + exp(par["U"])) # logit link 
     B <- exp(par["B"]) #+ error # log link
     Q <- exp(par["Q"]) + 1 #+ error # log link + 1
+    par_det <- c(U, B, Q)
+    names(par_det) <- c("U", "B", "Q") # make sure names are correct
+  } else if (det_function == "logistic") {
+    U <- exp(par["U"]) / (1 + exp(par["U"])) # logit link 
+    B <- exp(par["B"]) #+ error # log link
+    Q <- exp(par["Q"]) #+ error # log link + 1
     par_det <- c(U, B, Q)
     names(par_det) <- c("U", "B", "Q") # make sure names are correct
   } else if (det_function == "half-normal") {
@@ -358,7 +364,7 @@
         
         # Derive the associated detection probabilities 
         # system.time({
-        if (det_function == "janoschek" | det_function = "logistic") {
+        if (det_function == "janoschek" | det_function == "logistic") {
           det_probs <- .gSNR(snr = E_snr, 
                              par = par_det,
                              type = det_function)
@@ -443,17 +449,28 @@
       
       #### Part 2: bearings
       if (USE_BEARINGS) {
-        part_bearings <- apply(t(grid_bearings), 2, function(x) {
-          # Subtract bearings for grid from observed bearings to centre on zero
-          obs_minus_exp <- bearings - x[index] ## I THINK THIS IS NOT CORRECT
-          log_p <- circular::dvonmises(x = obs_minus_exp, 
-                                       mu = circular::circular(0, template = "geographics"),
-                                       kappa = kappa,
-                                       log = TRUE)
-          
-          # Return the sum of the log probabilities
-          return(sum(log_p))
-        })
+        
+        obs_minus_exp <- circular::circular(matrix(bearings, nrow = n_grid, ncol = length(bearings), byrow = TRUE) - 
+                                              grid_bearings[, index], template = "geographics")
+        
+        log_p <- circular::dvonmises(x = obs_minus_exp, 
+                                     mu = circular::circular(0, template = "geographics"),
+                                     kappa = kappa,
+                                     log = TRUE)
+        # Return the sum of the log probabilities
+        part_bearings <- colSums(t(log_p))
+        
+        # part_bearings <- apply(t(grid_bearings), 2, function(x) {
+        #   # Subtract bearings for grid from observed bearings to centre on zero
+        #   obs_minus_exp <- bearings - x[index] ## I THINK THIS IS NOT CORRECT
+        #   log_p <- circular::dvonmises(x = obs_minus_exp, 
+        #                                mu = circular::circular(0, template = "geographics"),
+        #                                kappa = kappa,
+        #                                log = TRUE)
+        #   
+        #   # Return the sum of the log probabilities
+        #   return(sum(log_p))
+        # })
       } else {part_bearings <- 0}
       
       part_2 <- matrix(part_bearings, nrow = n_grid, ncol = n_sl, byrow = FALSE)
