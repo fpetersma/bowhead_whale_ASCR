@@ -89,7 +89,7 @@
     Q <- exp(par["Q"]) + 1 #+ error # log link + 1
     par_det <- c(U, B, Q)
     names(par_det) <- c("U", "B", "Q") # make sure names are correct
-  } else if (det_function == "logistic") {
+  } else if (det_function == "logit" | det_function == "probit") {
     U <- exp(par["U"]) / (1 + exp(par["U"])) # logit link 
     B <- exp(par["B"]) #+ error # log link
     Q <- exp(par["Q"]) #+ error # log link + 1
@@ -165,7 +165,7 @@
       ## or noise_random increases.
       
       ## Initiate parallel process leaving one core free
-      no_cores <- 7#detectCores() - 1
+      no_cores <- 20#detectCores() - 1
       cl <- makeCluster(no_cores)
       
       # Export required data and functions to all clusters
@@ -201,7 +201,7 @@
         
         # Derive the associated detection probabilities 
         # system.time({
-        if (det_function == "janoschek" | det_function == "logistic") {
+        if (det_function == "janoschek" | det_function == "logit" | det_function == "probit") {
           det_probs <- .gSNR(snr = E_snr, 
                              par = par_det,
                              type = det_function)
@@ -285,7 +285,7 @@
     ##############################################################################
     
     ## Initiate parallel process leaving one core free
-    no_cores <- 7# detectCores() - 1
+    no_cores <- 20# detectCores() - 1
     cl <- makeCluster(no_cores)
     
     # Export required data and functions to all clusters
@@ -364,7 +364,7 @@
         
         # Derive the associated detection probabilities 
         # system.time({
-        if (det_function == "janoschek" | det_function == "logistic") {
+        if (det_function == "janoschek" | det_function == "logit" | det_function == "probit") {
           det_probs <- .gSNR(snr = E_snr, 
                              par = par_det,
                              type = det_function)

@@ -28,7 +28,7 @@
   return(as.vector(D))
 }
 
-.gSNR <- function(snr, par, type = "logistic") {
+.gSNR <- function(snr, par, type = "probit") {
   # Description:
   #   
   
@@ -41,14 +41,21 @@
   Q <- par["Q"]
   L <- 0
   
-  
-  
-  if (type == "logistic") {
+  if (type == "probit") {
+    if (U < 0 | U > 1) {stop("The upper limit U should be between 0 and 1!")}
+    if (B <= 0) {stop("The inflection point parameter B should be positive!")}
+    if (Q <= 0) {stop("The growth parameter Q should be larger than 1!")}
+    
+    g <- U * pnorm(snr, B, Q)
+  }
+  if (type == "logit") {
     # Input checks
     if (U < 0 | U > 1) {stop("The upper limit U should be between 0 and 1!")}
     if (B <= 0) {stop("The inflection point parameter B should be positive!")}
     if (Q <= 0) {stop("The growth parameter Q should be larger than 1!")}
-    g <- U / (1 + exp(-Q * (snr - B)))
+    
+    g <- U * plogis(snr, B, Q)
+    # g <- U / (1 + exp(-Q * (snr - B)))
   }
   if (type == "janoschek") {
     # Input checks
