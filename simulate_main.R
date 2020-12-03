@@ -45,8 +45,9 @@ f_density <- D ~ 1
 # f_density <- D ~ depth + depth2
 
 # set det function!
+det_function<- "probit"
 # det_function <- "half-normal"
-det_function <- "logistic"
+# det_function <- "logit"
 # det_function <- "janoschek"
 
 ## Set all parameters on the real scale. Only density is on the log scale
@@ -61,7 +62,7 @@ if (det_function == "janoschek") {
   par_det <- c(U = 0.8, # should be in (0, 1]
                B = 1.5, # should be in (0, Inf)
                Q = 2.8) # should be in (1, Inf)
-} else if (det_function == "logistic") {
+} else if (det_function == "logit" | det_function == "probit") {
   # Detection function parameters
   par_det <- c(U = 0.8, # should be in (0, 1]
                B = 10, # should be in (0, Inf)
@@ -146,8 +147,9 @@ min_no_detections <- 2
 # Set the area parameter
 A <- 8.774550 # km^2
 
+det_function <- "probit"
 # det_function <- "janoschek"
-det_function <- "logistic"
+# det_function <- "logit"
 # det_function <- "half-normal"
 
 dat <- list(det_hist = det_hist,
@@ -169,7 +171,7 @@ if(det_function == "janoschek") {
   par_det_start <- c(U = log(0.8 / (1 - 0.8)), # should be in (0, 1]
                      B = log(1.5), # should be in (0, Inf)
                      Q = log(2.8 - 1)) # should be in (1, Inf)
-} else if (det_function == "logistic") {
+} else if (det_function == "logit" | det_function == "probit") {
   # Detection function parameters
   par_det_start <- c(U = log(0.8 / (1 - 0.8)), # should be in (0, 1]
                      B = log(10), # should be in (0, Inf)
