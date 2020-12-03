@@ -1,13 +1,45 @@
-# # for test runs
+# Run for test runs ============================================================
 # par <- par_start
 # rm(list = setdiff(ls(), c("dat", "par")))
 # method = "L-BFGS-B"
 # maxit = 100
 # TRACE = TRUE
 # LSE = TRUE
+# ==============================================================================
 
+#' Fits an acoustic spatial capture recapture model to bowhead whale call data 
+#' collected by Greeneridge from 2007 to 2014. The method requires information
+#' on the observed detection histories, received levels, and noise recordings,
+#' and information on the latent spatial origins and source levels of the calls. 
+#' 
+#' Fits an acoustic spatial capture-recapture model to the data, using a list of 
+#' start values. Functionality was added to allow for different optimising 
+#' methods, different number of iterations, to trace to progress or not, and 
+#' to use the likelihood with or without the LSE-approximation. It is not 
+#' possible to provide start values for the parameters of regression splines, 
+#' but all other parameters require start values.
+#' 
+#' @param dat a list required and correctly named data
+#' @param par a list of parameters to be estimated 
+#' @param method which optimisation method to use (see \code{optim()} for more 
+#' information)
+#' @param maxit the maximum number of iterations (defaults to \code{100})
+#' @param TRACE whether it should print the parameters values that are tried 
+#' (defaults to \code{TRUE})
+#' @param LSE whether it should use the log-sum-exp approximations (defaults to
+#' \code{TRUE})
+#'
+#' @return An \code{S3.Object} of class 'bwASCR_model' containing the results of 
+#' the fitting, the raw results from \code{optim()} and the original data inputs 
+#' for completeness.
+#'
+#' @examples
+#' bwASCR(...)
+#'
+#' @export
 bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                    LSE = TRUE) {
+<<<<<<< Updated upstream
   
   # Description: 
   #   An acoustic spatial capture-recapture model to the data, using a list of 
@@ -33,6 +65,11 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   #   output    - [S3.Object] containing the results of the fitting, the raw 
   #               results from optim() and the original data inputs for 
   #               completeness.
+=======
+  # REMEMBER TO UPDATE CERTAIN BITS DEPENDING ON WHICH llk...R SCRIPT WILL BE USED
+  # LINES TO UPDATE: 80 (which pars to include), 159 (which confidence bounds to use),
+  #                  146 (which llk....R script to use).
+>>>>>>> Stashed changes
   
   ################## Load libraries and perform input checks ###################
   library(dplyr)
