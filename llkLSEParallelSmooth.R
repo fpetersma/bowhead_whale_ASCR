@@ -29,16 +29,23 @@
   require(mgcv)
   library(parallel)
   library(snow)
+  library(circular)
+  library(matrixStats)
+  library(truncnorm)
+  library(raster)
   
   # Define very small error to be added to values
-  error <- 1e-6
+  cores <- 12
+  error <- 0
   smooth <- "none" # other options are "loess" and "gam"
+  neg_inf <- -1e16
+  rl_trunc_level <- 15
   
   ######################## Extract data from dat ###############################
   det_hist <- dat$det_hist
   cov_density <- dat$cov_density
   detectors <- dat$detectors
-  A <- dat$A
+  A_x <- dat$A_x
   f_density <- dat$f_density
   det_function <- dat$det_function
   distances <- dat$distances
@@ -50,20 +57,26 @@
   TRACE <- dat$TRACE
   CONSTANT_DENSITY <- dat$CONSTANT_DENSITY
   
-  if (TRACE) {print(par)}
+  if (TRACE) {
+    print(par)
+    write.table(matrix(par, nrow = 1, byrow = TRUE),  
+                file = paste0("parameter_history_", dat$f_density[3], ".csv"), 
+                append = T, 
+                sep = ',', 
+                row.names = FALSE, 
+                col.names = FALSE)
+  }
   
   if (USE_BEARINGS) {
     bearings_rad <- dat$bearings_rad
     grid_bearings <- dat$grid_bearings
   }
   if (USE_RL) {
+    A_s <- dat$A_s
     source_levels <- dat$source_levels
     received_levels <- dat$received_levels
-    # snr <- dat$snr
     noise_call <- dat$noise_call
-    # if (!CONSTANT_DENSITY) {
     noise_random <- dat$noise_random
-    # }
   }
   
   ################## Extract some important constants ##########################
@@ -72,9 +85,7 @@
   n_grid <- nrow(cov_density) # number of grid points
   if (USE_RL) {
     n_sl <- length(source_levels) # number of source levels
-    # if (!CONSTANT_DENSITY) {
     n_noise <- nrow(noise_random) # number of random noise samples
-    # }
   }
   
   if (!CONSTANT_DENSITY) {
@@ -85,14 +96,18 @@
   # correct domain)
   if (det_function == "janoschek" ) {
     U <- exp(par["U"]) / (1 + exp(par["U"])) # logit link 
-    B <- exp(par["B"]) #+ error # log link
+    B <- exp(par["B"]) + error # log link
     Q <- exp(par["Q"]) + 1 #+ error # log link + 1
     par_det <- c(U, B, Q)
     names(par_det) <- c("U", "B", "Q") # make sure names are correct
+  } else if (det_function == "simple") {
+    g0 <- exp(par["g0"]) / (1 + exp(par["g0"])) # logit link 
+    par_det <- c(g0)
+    names(par_det) <- "g0" # make sure names are correct
   } else if (det_function == "logit" | det_function == "probit") {
     U <- exp(par["U"]) / (1 + exp(par["U"])) # logit link 
-    B <- exp(par["B"]) #+ error # log link
-    Q <- exp(par["Q"]) #+ error # log link + 1
+    B <- exp(par["B"]) + error # log link
+    Q <- exp(par["Q"]) + error # log link 
     par_det <- c(U, B, Q)
     names(par_det) <- c("U", "B", "Q") # make sure names are correct
   } else if (det_function == "half-normal") {
@@ -112,8 +127,8 @@
     
     mu_s <- exp(par["mu_s"]) # log link
     sd_s <- exp(par["sd_s"]) # log link
-    lower_s <- 70
-    upper_s <- 130
+    lower_s <- 0
+    upper_s <- Inf
   }
   
   if (smooth != "none" & USE_RL) {
@@ -151,9 +166,7 @@
     
     ### Creating a list of one dimension and than parallel lapply() ##############
     # Faster than foreach()
-    library(parallel)
-    library(snow)
-    
+
     # system.time({
     if (!CONSTANT_DENSITY) {
       ##########################################################################
@@ -165,7 +178,7 @@
       ## or noise_random increases.
       
       ## Initiate parallel process leaving one core free
-      no_cores <- 20#detectCores() - 1
+      no_cores <- cores#detectCores() - 1
       cl <- makeCluster(no_cores)
       
       # Export required data and functions to all clusters
@@ -186,25 +199,25 @@
                                        "detector" = 1:n_det))
         # Create matrix with identical noise in every row
         c_m <- matrix(c, nrow = n_grid, ncol = n_det, byrow = TRUE)
-        # system.time({
+
         for (sl in source_levels) {
           sl_m <- matrix(sl, nrow = n_grid, ncol = n_det)
           # Derive the expected snr
           E_snr[as.character(sl), , ] <- sl_m - beta_r * 
             log(distances, base = 10) - c_m
         }
-        # Set E_snr to 0 if negative
-        E_snr[E_snr < 0] <- 0
-        # })
+        
+        # # Set E_snr to 0 if negative
+        # E_snr[E_snr < 0] <- 0
         # Clean environment
         rm(sl_m, sl) 
         
         # Derive the associated detection probabilities 
-        # system.time({
-        if (det_function == "janoschek" | det_function == "logit" | det_function == "probit") {
+        if (det_function == "janoschek" | det_function == "logit" | 
+            det_function == "probit" | det_function == "simple") {
           det_probs <- .gSNR(snr = E_snr, 
                              par = par_det,
-                             type = det_function)
+                             type = det_function, sd_r = sd_r)
         } else if (det_function == "half-normal") {
           # Create same distance array for every source level
           distance_array <- array(data = NA,
@@ -218,14 +231,11 @@
           det_probs <- .gHN(distances = distance_array, 
                             par = par_det)
         }
-        # })
         # Derive probabilities that a call was detected at least 
         # min_no_detections times for all source levels
-        # system.time({
         p. <- t(apply(det_probs, 1, function(probs) {
           .detected(probs = probs, min_no_detections = min_no_detections)
         }))
-        # })
         
         # Run some test whether the data is correct
         if (any(det_probs < 0)) {
@@ -244,8 +254,9 @@
         probs_sl_m <- matrix(probs_sl, nrow = n_sl, ncol = n_grid, 
                              byrow = FALSE)
         
-        # Create a matrix of all products of D, p. and f(s)
-        probs_per_grid_sl <- p. * D_m * probs_sl_m
+        # Create a matrix of all products of D, p., f(s) and A_x
+        probs_per_grid_sl <- p. * D_m * probs_sl_m * 
+          matrix(A_x$area, nrow = n_sl, ncol = n_grid, byrow = TRUE) # repeat area for every source level
         
         # Sum over all columns (grid points) 
         probs_per_sl <- Rfast::colsums(t(probs_per_grid_sl))
@@ -266,14 +277,13 @@
       # Stop parallel process
       stopCluster(cl)
       
-      # Sum the output together and multiply by A to get the rate parameter 
-      rate <- A * mean(unlist(rates_noise))
+      # Sum the output together and multiply by A_s to get the rate parameter 
+      rate <- A_s * mean(unlist(rates_noise)) # '* A_x' is old, as A_x is now variable
       
       # Derive the probability density for the number of detections given the rate
       llk_n <- dpois(n_call, rate, log = TRUE)
-      if (llk_n == -Inf) llk_n <- -6000 # set to -6000 if -Inf since L-BFGS-B does
+      if (llk_n == -Inf | llk_n < neg_inf) llk_n <- neg_inf # set to neg_inf if -Inf since L-BFGS-B does
       # not accept non-real values
-      # microbenchmark(llk_n <- n_call * log(rate) - rate - log(factorial(n_call)))
       
       # Clear environment
       rm("rate", "cl", "rates_noise", "no_cores", "hidden_functions", 
@@ -285,12 +295,11 @@
     ##############################################################################
     
     ## Initiate parallel process leaving one core free
-    no_cores <- 20# detectCores() - 1
+    no_cores <- cores# detectCores() - 1
     cl <- makeCluster(no_cores)
     
     # Export required data and functions to all clusters
     hidden_functions <- c(".gSNR", ".detected", ".densityGAM", ".gHN")
-    # package_functions <- c("dvonmises")
     clusterExport(cl, list = c(ls(), hidden_functions), envir = environment()) 
     
     # Start parallel process over number of calls 
@@ -352,22 +361,19 @@
           E_rl[as.character(sl), , ] <- sl_m - beta_r * log(distances, base = 10)
           
           # Derive the expected snr
-          E_snr[as.character(sl), , ] <- sl_m - beta_r *
-            log(distances, base = 10) - c_m
+          E_snr[as.character(sl), , ] <- E_rl[as.character(sl), , ] - c_m
         }
-        # Set E_snr to 0 if negative
-        E_snr[E_snr < 0] <- 0
-        # })
         
         # Clean environment
         rm(sl, sl_m)
         
         # Derive the associated detection probabilities 
         # system.time({
-        if (det_function == "janoschek" | det_function == "logit" | det_function == "probit") {
+        if (det_function == "janoschek" | det_function == "logit" | 
+            det_function == "probit" | det_function == "simple") {
           det_probs <- .gSNR(snr = E_snr, 
                              par = par_det,
-                             type = det_function)
+                             type = det_function, sd_r = sd_r)
         } else if (det_function == "half-normal") {
           # Create same distance array for every source level
           distance_array <- array(data = NA,
@@ -383,17 +389,13 @@
         
         # Derive probabilities that a call was detected at least 
         # min_no_detections times
-        # system.time({
         p. <- apply(det_probs, 1, function(probs) {
           .detected(probs = probs, min_no_detections = min_no_detections)
         })
-        # })
       } else {
         # Derive the associated detection probabilities 
-        # system.time({
         det_probs <- .gHN(distances = distances, 
                           par = par_det)
-        # })
         p. <- .detected(probs = det_probs, min_no_detections = min_no_detections)
       }
       # Run some test whether the data is correct
@@ -420,10 +422,7 @@
           
           # Take the logarithm
           log_p <- log(p)
-          # if(any(is.infinite(log_p))) {
-          #   stop("In part 1: log_p contains (-)Inf values.")
-          # }
-          
+
           # Return vector of the sum of log_p for every grid point
           return(Rfast::colsums(t(log_p)))
         })
@@ -435,17 +434,14 @@
           
           # Take the logarithm
           log_p <- log(p)
-          # if(any(is.infinite(log_p))) {
-          #   stop("In part 1: log_p contains (-)Inf values.")
-          # }
           
           # Return vector of the sum of log_p for every grid point
           return(sum(log_p))
         })
       }
       part_1 <- part_density + part_det_hist
-      # Replace -Inf with -6000, since exp(-6000) = 0
-      part_1[part_1 == -Inf] <- -6000
+      # Replace -Inf with neg_inf, to avoid NA later on
+      part_1[part_1 == -Inf] <- neg_inf
       
       #### Part 2: bearings
       if (USE_BEARINGS) {
@@ -459,127 +455,99 @@
                                      log = TRUE)
         # Return the sum of the log probabilities
         part_bearings <- colSums(t(log_p))
-        
-        # part_bearings <- apply(t(grid_bearings), 2, function(x) {
-        #   # Subtract bearings for grid from observed bearings to centre on zero
-        #   obs_minus_exp <- bearings - x[index] ## I THINK THIS IS NOT CORRECT
-        #   log_p <- circular::dvonmises(x = obs_minus_exp, 
-        #                                mu = circular::circular(0, template = "geographics"),
-        #                                kappa = kappa,
-        #                                log = TRUE)
-        #   
-        #   # Return the sum of the log probabilities
-        #   return(sum(log_p))
-        # })
+       
       } else {part_bearings <- 0}
       
       part_2 <- matrix(part_bearings, nrow = n_grid, ncol = n_sl, byrow = FALSE)
-      # Replace -Inf with -6000, since exp(-6000) = 0
-      part_2[part_2 == -Inf] <- -6000
+      # Replace -Inf with neg_inf, to avoid NA later on
+      part_2[part_2 == -Inf] <- neg_inf
       
       ## Part 3: received levels and source level !THIS IS THE SLOW PART!
-      # system.time({
       if (USE_RL) {
         # part_received_levels <- 0
         
         part_received_levels <- t(apply(E_rl[, , index], c(1, 2), function(x) {
-          # Subtract expected levels from received levels
-          obs_minus_exp <- rl - x
+          # # Assume normal on received levels instead of truncated normal
+          # p_log <- dnorm(x = rl, mean = x, sd = sd_r, log = TRUE)
+          # 
+          # return(sum(p_log))
           
-          # dtruncnorm() does not allow for the use of logarithms, but very fast
-          p <- truncnorm::dtruncnorm(x = rl,
-                                     a = c[index],
-                                     mean = x,
-                                     sd = sd_r)
-          p_log <- log(p)
-          
-          # # More stable version with logarithms applied where possible,
-          # # but much slower (800 microsecs vs 18 microsecs)
-          # pdf_part <- dnorm(x = as.numeric((rl - x) / sd_r), log = TRUE)
-          # cdf_part <- log(sd_r * (1 - pnorm((c[index] - x) / sd_r)))
-          #
-          # p_log <- pdf_part - cdf_part
-          
-          return(sum(p_log))
+          # using this from llklseparellelsmoothnosl.R
+          p <- dnorm(x = rl, mean = x, sd = sd_r, log = TRUE)
+          SNR_exp <- x - c[index]
+          if (det_function == "simple") {
+            p <- p + log(g0) - log(g0 * (1 - pnorm((rl_trunc_level - SNR_exp) / sd_r))) 
+          } else if (det_function == "probit") {
+            SNR_measured <- rl - c[index]
+            
+            p <- p + log(U * pnorm(SNR_measured, mean = B, sd = Q)) - 
+              log(U * pnorm(SNR_exp, mean = B, sd = Q))
+          }
+          # p <- p + log(g0) - log(g0 * (1 - pnorm((rl_trunc_level - SNR_exp) / sd_r))) #+
+          # log(U * pnorm(SNR_measured, mean = B, sd = Q))
+
+          # return(sum(p_log))
+          return(sum(p))
         }))
-        # # Check for -Inf values due to logarithms of 0
-        # # replace values probabilities smaller than log(error) with log(error).
-        # # This might cuase problem of (almost) all p's are smaller than log(error)
-        # # Or use -6000 as smallest on log scale
-        # part_received_levels[part_received_levels == -Inf | 
-        #                        part_received_levels < -6000] <- -6000
         
-        # # slightly less elegant but clearer maybe, roughly same runtime
-        # system.time({
-        # part_received_levels <- apply(E_rl[, , index], 1, function(x) {
-        #   apply(x, 1, function(y) {
-        #     # Subtract expected levels from received levels
-        #     obs_minus_exp <- rl - y
-        #     
-        #     # dtruncnorm() does not allow for the use of logarithms, but very fast
-        #     p <- truncnorm::dtruncnorm(x = rl,
-        #                                a = c[index], 
-        #                                mean = y,
-        #                                sd = sd_r)
-        #     p_log <- log(p)
-        #     
-        #     # # More stable version with logarithms applied where possible,
-        #     # # but much slower (800 microsecs vs 18 microsecs)
-        #     # pdf_part <- dnorm(x = as.numeric((rl - x) / sd_r), log = TRUE)
-        #     # cdf_part <- log(sd_r * (1 - pnorm((c[index] - x) / sd_r)))
-        #     # 
-        #     # p_log <- pdf_part - cdf_part
-        #     
+        # part_received_levels <- t(apply(E_rl[, , index], 1, function(x1) {
+        #   a <- apply(x1, 1, function(x2) {
+        #     p_log <- dnorm(x = rl, mean = x2, sd = sd_r, log = TRUE)
         #     return(sum(p_log))
         #   })
-        # })
-        # })
+        #   return(a)
+        # }))
+        
         part_source_level <- truncnorm::dtruncnorm(x = matrix(source_levels, nrow = n_grid, 
                                                               ncol = n_sl, byrow = TRUE), 
                                                    a = lower_s, b = upper_s, mean = mu_s, 
                                                    sd = sd_s)
-        part_source_level <- log(part_source_level)
+        part_source_level <- matrix(log(part_source_level), nrow = n_grid, 
+                                    ncol = n_sl, byrow = FALSE)
         
         # Add the two subpart to create part 3
         part_3 <- part_received_levels + part_source_level
       } else {
         part_3 <- matrix(0, nrow = n_grid, ncol = n_sl)
       }
-      # Replace -Inf with -6000, since exp(-6000) = 0
-      part_3[part_3 == -Inf] <- -6000
-      # })
+      # Replace -Inf with neg_inf, to avoid NA later on
+      part_3[part_3 == -Inf] <- neg_inf
       
       ## Part 4: the effective sampled area given c_i, a|c_i
       if (USE_RL) {
-        # Calculate log(p.) + log(D) + log(f(s))
-        temp <- log(p.) + part_density + part_source_level
+        # Calculate log(p.) + log(D) + log(f(s)) + log(source level increments)
+        temp <- log(p.) + part_density + part_source_level + 
+          matrix(log(A_s), nrow = n_grid, ncol = n_sl, byrow = TRUE)
         
-        # logSumExp() first over the source levels
-        temp <- apply(t(temp), 2, matrixStats::logSumExp)
+        # logSumExp() first over the source levels and add (variable) grid areas
+        temp <- apply(t(temp), 2, matrixStats::logSumExp) + log(A_x$area)
       } else {
         # Calculate log(p.) + log(D) 
         temp <- log(p.) + part_density
       }
       
       # logSumExp() over the grid points
-      part_4 <- log(A) + matrixStats::logSumExp(temp)
-      # Replace -Inf with -6000, since exp(-6000) = 0
-      part_4[part_4 == -Inf] <- -6000
+      part_4 <- matrixStats::logSumExp(temp) # OLD + log(A_x) + log(A_s)
+      # Replace -Inf with neg_inf, to avoid NA later on
+      part_4[part_4 == -Inf] <- neg_inf
       
       rm(temp)
       
-      #### Add all the parts together
-      total_per_grid_sl <- part_1 + part_2 + part_3 - part_4
+      #### Add all the parts together and add the variable grid areas
+      total_per_grid_sl <- part_1 + part_2 + part_3 - part_4 +
+        matrix(log(A_x$area), nrow = n_grid, ncol = n_sl, byrow = FALSE)
       
       # Check for -Inf values due to logarithms of 0
       # replace values probabilities smaller than log(error) with log(error).
       # This might cuase problem of (almost) all p's are smaller than log(error)
       # Or use -6000 as smallest on log scale
-      total_per_grid_sl[is.infinite(total_per_grid_sl) | total_per_grid_sl < -6000] <- -6000
+      total_per_grid_sl[is.infinite(total_per_grid_sl) | 
+                          total_per_grid_sl < neg_inf] <- neg_inf
       
-      # logSumExp() over the grid points and add log of area A
-      total_per_sl <- apply(total_per_grid_sl, 2, matrixStats::logSumExp) + log(A)
-      
+      # logSumExp() over the source levels and add the variable grid areas
+      total_per_sl <- apply(total_per_grid_sl, 2, matrixStats::logSumExp) +
+        log(A_s)
+        
       if (USE_RL) {
         if (smooth == "gam") {
           # Fit a smooth 
@@ -592,8 +560,8 @@
                           newdata = data.frame(source_levels = source_levels_all))
         } else if (smooth == "none") {pred <- total_per_sl}
         
-        # logSumExp() over the source levels
-        total <- matrixStats::logSumExp(pred)
+        # logSumExp() over the source levels and add the logs of the areas
+        total <- matrixStats::logSumExp(pred) # + log(A_s) + log(A_x$area)
       } else {total <- total_per_sl}
       
       return(total)
@@ -608,6 +576,10 @@
     ########################### Create complete llk ############################
     
     llk_full <- llk_n + llk_cond
+    
+    # If a completely unrealistic space was tried which gives massive positive
+    # log likelihoods, set llk_full to the neg_inf value
+    if (llk_full > 1e8) {llk_full <- neg_inf}
   }
   
   ##############################################################################
@@ -626,12 +598,11 @@
     
     # Multiply p. and D, then sum and multiply by A to get the rate parameter
     # or ESA in case of constant density (I think?)
-    rate <- A * sum(p. * D)
+    rate <- A_x * sum(p. * D)
     
     if (!CONSTANT_DENSITY) {
       part_full <- dpois(n_call, lambda = rate, log = TRUE)
-      # part_full <- n_call * log(rate) - rate
-      
+
       if (is.infinite(part_full)) {part_full <- -6000}
     } else {part_full <- 0}
     
@@ -646,9 +617,6 @@
       
       # Take the logarithm
       log_p <- log(p)
-      # if(any(is.infinite(log_p))) {
-      #   stop("In part 1: log_p contains (-)Inf values.")
-      # }
       
       # Return vector of the sum of log_p for every grid point
       return(colSums(t(log_p)))
@@ -662,8 +630,7 @@
         # Subtract bearings for grid from observed bearings to centre on zero
         index <- !is.na(x)
         obs_minus_exp <- circular(matrix(x, nrow = n_grid, ncol = n_det, byrow = TRUE) - 
-                                    grid_bearings, template = "geographics")#, 
-        # modulo = "2pi")
+                                    grid_bearings, template = "geographics")
         obs_minus_exp <- obs_minus_exp[, index] ## I THINK THIS IS NOT CORRECT
         log_p <- dvonmises(x = obs_minus_exp, 
                            mu = circular::circular(0, template = "geographics"),
@@ -678,7 +645,7 @@
     # Add all parts together
     part_conditional <- part_det_hist + part_density + part_bearings
     # Some over the grid points using the logSumExp approximations and add log(A) - log(rate)
-    part_conditional <- apply(part_conditional, 2, logSumExp) - log(rate) + log(A)
+    part_conditional <- apply(part_conditional, 2, logSumExp) - log(rate) + log(A_x)
     part_conditional[is.infinite(part_conditional)] <- -6000
     # Sum over all the calls
     part_conditional <- sum(part_conditional)
