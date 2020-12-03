@@ -1,28 +1,10 @@
-<<<<<<< Updated upstream
-# # for test runs
-=======
 # Run for test runs ============================================================
->>>>>>> Stashed changes
 # par <- par_start
 # rm(list = setdiff(ls(), c("dat", "par")))
 # method = "L-BFGS-B"
 # maxit = 100
 # TRACE = TRUE
 # LSE = TRUE
-<<<<<<< Updated upstream
-
-bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
-                   LSE = TRUE) {
-  
-  # Description: 
-  #   An acoustic spatial capture-recapture model to the data, using a list of 
-  #   start values. Functionality was added to allow for different optimising 
-  #   methods, different number of iterations, to trace to progress or not, and 
-  #   to use the likelihood with or without the LSE-trick. It is not possible to 
-  #   provide start values for the parameters of regression splines, but all 
-  #   other parameters require start values.
-  
-=======
 # ==============================================================================
 
 #' Fits an acoustic spatial capture recapture model to bowhead whale call data 
@@ -59,29 +41,10 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
 #' @export
 bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                    LSE = TRUE) {
-
->>>>>>> Stashed changes
   # REMEMBER TO UPDATE CERTAIN BITS DEPENDING ON WHICH llk...R SCRIPT WILL BE USED
   # LINES TO UPDATE: 80 (which pars to include), 159 (which confidence bounds to use),
   #                  146 (which llk....R script to use).
-  
-<<<<<<< Updated upstream
-  # Inputs:
-  #   dat       - [list] 
-  #   param     - [list] 
-  #   method    - [character] 
-  #   maxit     - [scalar] 
-  #   trace     - [logical] 
-  #   LSE       - [logical]
-  
-  # Outputs:
-  #   output    - [S3.Object] containing the results of the fitting, the raw 
-  #               results from optim() and the original data inputs for 
-  #               completeness.
-  
-=======
 
->>>>>>> Stashed changes
   ################## Load libraries and perform input checks ###################
   library(dplyr)
   library(mgcv)
