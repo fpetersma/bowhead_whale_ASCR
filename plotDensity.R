@@ -4,19 +4,25 @@ plotDensity <- function(d) {
   # density/heat map. 
   
   # Load necessary library 'lattice'
-  library("lattice")
+  library(lattice)
+  library(raster)
+  library(ggplot2)
   
-  if (class(d) == "bw_ascr_fit") {
+  if (class(d) == "bwASCR_model") {
     d <- d$density
   }
+
+  # ggplot(data = d, mapping = aes(x = long, y = lat, fill = density)) +
+  #   geom_tile()
   
   # Create the heat map
-  # par(mar=c(3,4,2,2))
-  levelplot(density ~ x * y, 
-            data = d, 
+  par(mar=c(3,4,2,2))
+  levelplot(density ~ long * lat,
+            data = d,
             pretty = TRUE,
-            xlab = "UTM easting", 
-            ylab = "UTM northing",
+            xlab = "Longitude easting",
+            ylab = "Latitude northing",
             col.regions = heat.colors(100)[length(heat.colors(100)):1],
             main = "")
+
 }
