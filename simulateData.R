@@ -1,8 +1,8 @@
 # rm(list = setdiff(ls(), c("f_density", "par", "cov_density", "detectors",
-#                           "A", "min_no_detections", "det_function")))
+#                           "min_no_detections", "det_function", "SINGLE_SL")))
 
-simulateData <- function(par, f_density, cov_density, detectors, A,
-                         min_no_detections, det_function) {
+simulateData <- function(par, f_density, cov_density, detectors,
+                         min_no_detections, det_function, SINGLE_SL = FALSE) {
   # Description:
   #   Based on the inputs, creates a density of the area. Based on this, 
   #   capture histories are simulated and returned. This can be used to test the
@@ -15,19 +15,21 @@ simulateData <- function(par, f_density, cov_density, detectors, A,
   #   dat         - [list] 
   
   
-  ################## Load libraries and perform input checks ###################
+  #----------------# Load libraries and perform input checks #-----------------#
   library(dplyr)
   library(mgcv)
   library(matrixStats)
   library(circular)
   library(truncnorm)
+  library(raster)
+  library(geosphere)
   
   source("Scripts/Bowhead Whales/hidden_functions.R")
   source("Scripts/Bowhead Whales/plotDensity.R")
   
-  ########################### Input checks #####################################
+  #-------------------------# Input checks #-----------------------------------#
   
-  ########################### Extract data #####################################
+  #-------------------------# Extract data #-----------------------------------#
   n_det <- nrow(detectors) # number of detectors
   n_grid <- nrow(cov_density) # number of grid points
   
@@ -49,18 +51,20 @@ simulateData <- function(par, f_density, cov_density, detectors, A,
     stop("Not all density parameters have starting values.")
   }
   
-  ## Potentially scale the grid_density data
-  cov_density_scaled <- cov_density
-  cov_density_scaled[, -c(1, 2)] <- scale(select(cov_density, -c("x", "y")))
+  # Extract the area
+  A <- subset(cov_density, select = c(long, lat, area))
   
-  ## Create a matrix of distances
-  distances <- apply(detectors, 1, function(z) {
-    y <- t(cov_density_scaled[, c("x", "y")]) - z
-    y <- y ^ 2
-    return(sqrt(colSums(y)))
-  })
+  # Potentially scale the grid_density data
+  cov_density_scaled <- subset(cov_density, select = -area)
+  cov_density_scaled[, -c(1, 2)] <- scale(subset(cov_density_scaled, 
+                                                 select = -c(long, lat)))
   
-  ######################## Start simulating data ###############################
+  # Create a matrix of distances
+  distances <- pointDistance(p1 = cov_density_scaled[, c("long", "lat")], 
+                             p2 = detectors[, c("long", "lat")], 
+                             lonlat = TRUE)
+  
+  #----------------------# Start simulating data #-----------------------------#
   
   # Create a gam object
   gam_fit <- gam(f_density, data = cbind(D = 0, cov_density_scaled))
@@ -82,34 +86,54 @@ simulateData <- function(par, f_density, cov_density, detectors, A,
     print("At least one element in D is negative!")
   }
   # Print map of the density
-  map <- plotDensity(d = data.frame(x = cov_density$x, y = cov_density$y, density = D))
+  map <- plotDensity(d = data.frame(long = cov_density$long, 
+                                    lat = cov_density$lat, 
+                                    density = D))
   print(map)
   
+  # set.seed(1)
+  
   ## Determine how many calls were simulated and extract distances to detectors
-  n_call <- round(A * sum(D))
+  emitted_call_per_cell <- rpois(n = n_grid, lambda = A$area * D)
+  n_call <- sum(emitted_call_per_cell)
   cat(paste0(n_call, " bowhead whale calls were simulated.\n"))
   
-  call_sample_index <- sample(1:n_grid, size = n_call, prob = D, 
-                              replace = TRUE)
+  call_sample_index <- rep(1:n_grid, times = emitted_call_per_cell)
   distances <- distances[call_sample_index, ]
   calls <- cov_density[call_sample_index, ]
   
-  ## Simulate sound characteristics for every call
-  source_levels <- rtruncnorm(n_call,
-                              a = par_sl["lower"],
-                              b = par_sl["upper"],
-                              mean = par_sl["mu"],
-                              sd = par_sl["sd"])
+  ### start old ###
+  # n_call <- round(sum(A$area * D))
+  # cat(paste0(n_call, " bowhead whale calls were simulated.\n"))
+  # 
+  # call_sample_index <- sample(1:n_grid, size = n_call, prob = D * A$area, 
+  #                             replace = TRUE)
+  # distances <- distances[call_sample_index, ]
+  # calls <- cov_density[call_sample_index, ]
+  ### End old ###
   
+  # set.seed(1)
+  ## Simulate sound characteristics for every call
+  if (SINGLE_SL) {
+    source_levels <- rep(par_sl["mu"], n_call) 
+  } else {
+    source_levels <- rtruncnorm(n_call,
+                                a = par_sl["lower"],
+                                b = par_sl["upper"],
+                                mean = par_sl["mu"],
+                                sd = par_sl["sd"])
+  }
+
   # Simulate mean noise level for every call
   noise <- rtruncnorm(n_call,
                       a = par_noise["lower"],
+                      b = par_noise["upper"],
                       mean = par_noise["mu"],
                       sd = par_noise["sd"])
   # For every noise level, create slight deviations for all detectors
   noise <- matrix(rep(noise, each = n_det), nrow = n_call, ncol = n_det,
                   byrow = TRUE)
-  noise <- noise + matrix(rnorm(length(noise), 0, 2), nrow = n_call,
+  noise <- noise + matrix(rnorm(length(noise), 0, 2), nrow = n_call, #hard-coded sd = 2
                           ncol = n_det, byrow = TRUE)
 
   # For every call, derive received level and add measurement error
@@ -120,18 +144,22 @@ simulateData <- function(par, f_density, cov_density, detectors, A,
 
   # Derive the signal to noise ratio
   snr <- received_levels - noise
-  snr[snr < 0] <- 0
   
-  ######################## Create detection histories ##########################
-  
-  ## Derive detection probabilities based on snr (set all negative snr to zero
+  #----------------# Create detection histories #------------------------------#
+  sd_r <- par_rl["sigma"]
 
+  # Derive detection probabilities based on snr 
   if (det_function == "half-normal") {
     det_probs <- .gHN(distances = distances, par = par_det)
   } else {
-    det_probs <- .gSNR(snr = snr, par = par_det, type = det_function)
+    det_probs <- .gSNR(snr = snr, par = par_det, type = det_function, sd_r = sd_r)
   }
   
+  # OPTION 2 : Add rl error AFTER det probs are derived
+  # received_levels <- received_levels +
+  #   matrix(rnorm(n_call * n_det, 0, par_rl["sigma"]), nrow = n_call) # measurement error
+  
+  # set.seed(1)
   # Create detection history consisting of 1's and 0's
   det_hist <- det_probs > runif(n_call * n_det, min = 0, max = 1)
   mode(det_hist) <- "numeric"
@@ -140,29 +168,19 @@ simulateData <- function(par, f_density, cov_density, detectors, A,
   ENOUGH_DETS <- rowSums(det_hist) >= min_no_detections
   detected_calls <- calls[ENOUGH_DETS, ]
   
-  # ## PLOTTING FOR TESTING
-  # plot(cov_density[, c("x", "y")])
-  # points(detectors, col = "red", pch = 16)
-  
   # Print result of simulation
   cat(paste0(sum(ENOUGH_DETS), " bowhead whale calls were detected at least ", 
              min_no_detections, " times.\n"))    
   
-  ####################### Create bearing histories #############################
+  #---------------------# Create bearing histories #---------------------------#
   # Derive bearings for all calls with enough detections
-  bearings <- apply(detectors[, c("x", "y")], 1, function(det) {
-    x <- detected_calls$x - det[1]
-    y <- detected_calls$y - det[2]
-    return(coord2rad(x, y, control.circular = list(template = "geographics", 
-                                                   units = "degrees",
-                                                   modulo = "2pi")))
-  })
-
-  # ## PLOTTING FOR TESTING
-  # plot(cov_density[, c("x", "y")])
-  # points(detectors, col = "red", pch = 16)
-  # points(detected_calls[2, c("x", "y")], col = "blue", pch = 16)
-  
+  bearings <- t(apply(detected_calls[, c("long", "lat")], 1, function(grid_point) {
+    bear <- geosphere::bearing(p1 = as.matrix(detectors[, c("long", "lat")]),
+                               p2 = grid_point)
+  }))
+  bearings <- circular(x = bearings, template = "geographics", modulo = "2pi",
+                       units = "degrees")
+  # set.seed(1)
   # Add the measurement error
   errors <- matrix(circular::rvonmises(n = length(bearings), 
                              mu = circular(0, template = "geographics", 
@@ -170,7 +188,7 @@ simulateData <- function(par, f_density, cov_density, detectors, A,
                              kappa = kappa),
                    ncol = n_det, nrow = nrow(bearings))
   bearings <- bearings + errors
-  bearings <- circular(bearings, template = "geographics", 
+  bearings <- circular(x = bearings, template = "geographics", 
                        modulo = "2pi", units = "degrees")
 
   ################# Add the data for detected calls to dat #####################
@@ -184,6 +202,14 @@ simulateData <- function(par, f_density, cov_density, detectors, A,
 
   noise_call <- noise[ENOUGH_DETS, ]
   noise_random <- noise[sample(1:n_call, 1000, replace = TRUE), ]
+  noise_random <- rtruncnorm(1000,
+                            a = par_noise["lower"],
+                            b = par_noise["upper"],
+                            mean = par_noise["mu"],
+                            sd = par_noise["sd"])
+  noise_random <- matrix(rep(noise_random, each = n_det), ncol = n_det, byrow = TRUE)
+  noise_random <- noise_random + matrix(rnorm(length(noise_random), 0, 2), nrow = 1000,  # hardcoded sd = 2
+                                        ncol = n_det, byrow = TRUE)
 
   bearing_hist <- bearings
   bearing_hist[NO_DETECTION] <- NA
@@ -194,7 +220,6 @@ simulateData <- function(par, f_density, cov_density, detectors, A,
               noise_call = noise_call,
               noise_random = noise_random,
               bearings = bearing_hist)
-  
   return(dat)
 }
   

@@ -28,36 +28,50 @@
   return(as.vector(D))
 }
 
-.gSNR <- function(snr, par, type = "logistic") {
+.gSNR <- function(snr, par, type = "probit", ...) {
   # Description:
   #   
   
   # Inputs:
   #   
   # Outputs:
+  args <- list(...)
   
-  U <- par["U"]
-  B <- par["B"]
-  Q <- par["Q"]
-  L <- 0
-  
-  
-  
-  if (type == "logistic") {
-    # Input checks
-    if (U < 0 | U > 1) {stop("The upper limit U should be between 0 and 1!")}
-    if (B <= 0) {stop("The inflection point parameter B should be positive!")}
-    if (Q <= 0) {stop("The growth parameter Q should be larger than 1!")}
-    g <- U / (1 + exp(-Q * (snr - B)))
+  if (type == "simple") {
+    g0 <- par["g0"]
+    g <- g0 * (1 - pnorm((15 - snr) / args$sd_r)) # finds sd_r in global.env
+  } else {
+    U <- par["U"]
+    B <- par["B"]
+    Q <- par["Q"]
+    L <- 0
+    
+    if (type == "probit") {
+      if (U < 0 | U > 1) {stop("The upper limit U should be between 0 and 1!")}
+      # if (B <= 0) {stop("The inflection point parameter B should be positive!")}
+      if (Q <= 0) {stop("The growth parameter Q should be larger than 1!")}
+      
+      g <- U * pnorm(snr, B, Q)
+    }
+    if (type == "logit") {
+      # Input checks
+      if (U < 0 | U > 1) {stop("The upper limit U should be between 0 and 1!")}
+      if (B <= 0) {stop("The inflection point parameter B should be positive!")}
+      if (Q <= 0) {stop("The growth parameter Q should be larger than 1!")}
+      
+      g <- U * plogis(snr, B, Q)
+      # g <- U / (1 + exp(-Q * (snr - B)))
+    }
+    if (type == "janoschek") {
+      # Input checks
+      if (U < 0 | U > 1) {stop("The upper limit U should be between 0 and 1!")}
+      if (B <= 0) {stop("The inflection point parameter B should be positive!")}
+      if (Q <= 1) {stop("The growth parameter Q should be larger than 1!")}
+      
+      g <- U - (U - L) * exp(-(B / 1000) * (snr ^ Q)) # B divided by 1000 to improve convergence
+    }
   }
-  if (type == "janoschek") {
-    # Input checks
-    if (U < 0 | U > 1) {stop("The upper limit U should be between 0 and 1!")}
-    if (B <= 0) {stop("The inflection point parameter B should be positive!")}
-    if (Q <= 1) {stop("The growth parameter Q should be larger than 1!")}
   
-    g <- U - (U - L) * exp(-(B / 1000) * (snr ^ Q)) # B divided by 1000 to improve convergence
-  }
   return(g)
 }
 
@@ -145,12 +159,13 @@
   
   # Outputs:
   
+  
   probs <- t(probs)
   
-  K <- nrow(probs)
+  k <- nrow(probs)
   
   # Create all combinations of detections and non-detections
-  dummies <- t(expand.grid(rep(list(1:0), K)))
+  dummies <- t(expand.grid(rep(list(1:0), k)))
   
   # Only keep row with less than 'min_no_detections' detections
   dummies <- dummies[, Rfast::colsums(dummies) < min_no_detections]
@@ -175,4 +190,46 @@
   p.[p. < 0] <- 0
   
   return(p.)
+}
+
+.total_N <- function(D, A, covariance_matrix, design, n) {
+  # Description:
+  # Inputs:
+  #   f - density formula
+  #   A - area of every grid cell
+  #   est - estimates corresponding to the densit specification
+  #   n - number of calls detected at least twice
+  # Input checks!
+  # D <- .density_GAM(design, f, est)
+  N <- A * sum(D$density)
+  
+  se <- NULL
+  upper <- NULL
+  lower <- NULL
+  
+  try({
+    # Calculate the variance of N based on Millar (2011) or Murray (2013). 
+    # g(x) is defined as sum(D) [see notes]
+    density_derivatives <- unname(colSums(D$density * design))
+    G <- c(rep(0, length = ncol(covariance_matrix) - length(density_derivatives)), 
+           density_derivatives)
+    v <- t(G) %*% covariance_matrix %*% G
+    v <- A ^ 2 * as.vector(v)
+    
+    # Assume normal distribution of N 
+    se <- sqrt(v)  
+    
+    # Since we know the number of detected animals for sure (= n), we don't need
+    # to include that part of the expectation in the variance. Basically, there is
+    # only uncertainty in N - n. Use Murray (2013) method for lognormal interval,
+    # in line with Rexstad and Burnham (1991).
+    C <- exp(1.96 * sqrt(log(1 + v / (N - n) ^ 2)))
+    
+    lower <- n + (N - n) / C
+    upper <- n + (N - n) * C
+  })
+  return(c(estimate = round(N, 6), 
+           se = round(se, 6), 
+           lower = round(lower, 6), 
+           upper = round(upper, 6)))
 }
