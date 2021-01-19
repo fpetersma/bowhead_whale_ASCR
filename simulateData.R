@@ -2,7 +2,8 @@
 #                           "min_no_detections", "det_function", "SINGLE_SL")))
 
 simulateData <- function(par, f_density, cov_density, detectors,
-                         min_no_detections, det_function, SINGLE_SL = FALSE) {
+                         min_no_detections, det_function, SINGLE_SL = FALSE, 
+                         ...) {
   # Description:
   #   Based on the inputs, creates a density of the area. Based on this, 
   #   capture histories are simulated and returned. This can be used to test the
@@ -32,6 +33,10 @@ simulateData <- function(par, f_density, cov_density, detectors,
   #-------------------------# Extract data #-----------------------------------#
   n_det <- nrow(detectors) # number of detectors
   n_grid <- nrow(cov_density) # number of grid points
+  
+  # args <- list(...)
+  # 
+  # trunc_level <- args$trunc_level
   
   # Extract parameters and convert to the real scale (add errors to ensure 
   # correct domain)
@@ -133,8 +138,8 @@ simulateData <- function(par, f_density, cov_density, detectors,
   # For every noise level, create slight deviations for all detectors
   noise <- matrix(rep(noise, each = n_det), nrow = n_call, ncol = n_det,
                   byrow = TRUE)
-  noise <- noise + matrix(rnorm(length(noise), 0, 2), nrow = n_call, #hard-coded sd = 2
-                          ncol = n_det, byrow = TRUE)
+  # noise <- noise + matrix(rnorm(length(noise), 0, 2), nrow = n_call, #hard-coded sd = 2
+  #                         ncol = n_det, byrow = TRUE)
 
   # For every call, derive received level and add measurement error
   received_levels <- matrix(source_levels, nrow = n_call, ncol = n_det,
@@ -154,6 +159,8 @@ simulateData <- function(par, f_density, cov_density, detectors,
   } else {
     det_probs <- .gSNR(snr = snr, par = par_det, type = det_function, sd_r = sd_r)
   }
+  
+  if (det_function == "simple") {det_probs <- par_det["g0"] * (snr > 15)} 
   
   # OPTION 2 : Add rl error AFTER det probs are derived
   # received_levels <- received_levels +
@@ -208,8 +215,8 @@ simulateData <- function(par, f_density, cov_density, detectors,
                             mean = par_noise["mu"],
                             sd = par_noise["sd"])
   noise_random <- matrix(rep(noise_random, each = n_det), ncol = n_det, byrow = TRUE)
-  noise_random <- noise_random + matrix(rnorm(length(noise_random), 0, 2), nrow = 1000,  # hardcoded sd = 2
-                                        ncol = n_det, byrow = TRUE)
+  # noise_random <- noise_random + matrix(rnorm(length(noise_random), 0, 2), nrow = 1000,  # hardcoded sd = 2
+  #                                       ncol = n_det, byrow = TRUE)
 
   bearing_hist <- bearings
   bearing_hist[NO_DETECTION] <- NA

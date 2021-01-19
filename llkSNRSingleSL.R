@@ -12,7 +12,7 @@
 # rm(list = setdiff(ls(), c("dat", "par")))
 
 # The 'fast' loglikelihood (not really, but faster than otherwise)
-.llkLSEParallelSmoothNoSL <- function(par, dat) {
+.llkSNRSingleSL <- function(par, dat) {
   
   # Description:
   #   
@@ -35,11 +35,12 @@
   library(raster)
   
   # Define very small error to be added to values
-  cores <- 6
+  cores <- 7
   error <- 0
   smooth <- "none" # other options are "loess" and "gam"
   neg_inf <- -1e16
-  rl_trunc_level <- 15
+  snr_trunc_level <- 15
+  rl_trunc_level <- 75
   
   ######################## Extract data from dat ###############################
   det_hist <- dat$det_hist
@@ -189,7 +190,9 @@
             det_function == "probit" | det_function == "simple") {
           det_probs <- .gSNR(snr = E_snr, 
                              par = par_det,
-                             type = det_function, sd_r = sd_r)
+                             type = det_function, 
+                             sd_r = sd_r,
+                             trunc_level = snr_trunc_level)
         } else if (det_function == "half-normal") {
           # Create same distance array for every source level
           distance_array <- array(data = NA,
@@ -296,9 +299,11 @@
         # system.time({
         if (det_function == "janoschek" | det_function == "logit" |
             det_function == "probit" | det_function == "simple") {
-          det_probs <- .gSNR(snr = E_snr, 
-                             par = par_det,
-                             type = det_function, sd_r = sd_r)
+            det_probs <- .gSNR(snr = E_snr, 
+                               par = par_det,
+                               type = det_function, 
+                               sd_r = sd_r,
+                               trunc_level = snr_trunc_level)
         } else if (det_function == "half-normal") {
           # Create same distance array for every source level
           distance_array <- array(data = NA,
@@ -355,7 +360,6 @@
       
       ### Part 2: bearings
       if (USE_BEARINGS) {
-
         obs_minus_exp <- circular::circular(matrix(bearings, nrow = n_grid, ncol = length(bearings), byrow = TRUE) -
                                               grid_bearings[, index], template = "geographics")
 
@@ -363,29 +367,11 @@
                                      mu = circular::circular(0, template = "geographics"),
                                      kappa = kappa,
                                      log = TRUE)
-
-
-
-
+        
         # Return the sum of the log probabilities
         part_bearings <- Rfast::colsums(t(log_p))
 
       } else {part_bearings <- 0}
-      #
-      # if (USE_BEARINGS) {
-      #   part_bearings <- sapply(1:n_grid, function(ii) {
-      #     obs_minus_exp <- circular::circular(bearings - grid_bearings[ii, index], template = "geographics")
-      #     p_filtered <- circular::dvonmises(x = obs_minus_exp,
-      #                                       mu = circular::circular(0, template = "geographics"),
-      #                                       kappa = kappa,
-      #                                       log = TRUE)
-      #     # x_rl <- E_rl[ii, index]
-      #     # SNR_exp <- x_rl - c[index]
-      #     # p_filtered <- p - log(U * pnorm(SNR_exp, mean = B, sd = Q))
-      #
-      #     return(sum(p_filtered))
-      #   })
-      # } else {part_bearings <- 0}
 
       part_2 <- part_bearings
 
@@ -394,49 +380,21 @@
 
       ## Part 3: received levels and source level !THIS IS THE SLOW PART!
       if (USE_RL) {
-        
-        # part_received_levels <- 0
-        
-        
         part_received_levels <- t(apply(E_rl[, index], c(1), function(x) {
-        # part_received_levels <- t(apply(E_rl[, , index], c(1, 2), function(x) {
-          # Subtract expected levels from received levels
-          # obs_minus_exp <- rl - x
-
-          # # dtruncnorm() does not allow for the use of logarithms, but very fast
-          # p <- truncnorm::dtruncnorm(x = rl,
-          #                            a = c[index],
-          #                            mean = x,
-          #                            sd = sd_r)
-          # p_log <- log(p)
-
-          # Assume normal on received levels instead of truncated normal
-          # p_log <- dnorm(x = rl, mean = x, sd = sd_r, log = TRUE)
 
           p <- dnorm(x = rl, mean = x, sd = sd_r, log = TRUE)
-          # rl_exp <- x #- c[index]
-          SNR_exp <- x - c[index]
+          rl_exp <- x #- c[index]
+          # snr_exp <- x - c[index]
           # # SNR_measured <- rl - c[index]
-          # p <- p - log(1 * (1 - pnorm((rl_trunc_level - SNR_exp) / sd_r))) #+
+          # p <- p - log(1 * (1 - pnorm((trunc_level - SNR_exp) / sd_r))) #+
           #   # log(U * pnorm(SNR_measured, mean = B, sd = Q))
           
           if (det_function == "simple") {
-            # p <- p + log(g0) - log(g0 * (1 - pnorm((rl_trunc_level - SNR_exp) / sd_r)))
+            # p <- p + log(g0) - log(g0 * (1 - pnorm((runc_level - SNR_exp) / sd_r)))
             p <- p + log(g0) - log(g0 * (pnorm(rl_trunc_level,
-                                               mean = snr_exp,
+                                               mean = rl_exp,
                                                sd = sd_r, lower.tail = FALSE)))
-          } #else if (det_function == "probit") {
-          #   SNR_measured <- rl - c[index]
-          # 
-          #   p <- p + log(U * pnorm(SNR_measured, mean = B, sd = Q)) -
-          #     log(U * pnorm(SNR_exp, mean = B, sd = Q))
-          # }
-          
-          # p <- truncnorm::dtruncnorm(x = rl, mean = x, sd = sd_r, a = rl_trunc_level)
-          # p <- log(p)
-          
-          
-          # return(sum(p_log))
+          } 
           return(sum(p))
         }))
 
@@ -447,29 +405,6 @@
       # Replace -Inf with neg_inf, to avoid NA later on
       part_3[part_3 == -Inf] <- neg_inf
       
-      
-      # if (USE_BEARINGS) {
-      #   part_bearings_received_levels <- sapply(1:n_grid, function(ii) {
-      #     obs_minus_exp <- circular::circular(bearings - grid_bearings[ii, index], template = "geographics")
-      #     p_bear <- circular::dvonmises(x = obs_minus_exp,
-      #                                       mu = circular::circular(0, template = "geographics"),
-      #                                       kappa = kappa,
-      #                                       log = FALSE)
-      #     x_rl <- E_rl[ii, index]
-      #     p_rl <- dnorm(x = rl, mean = x_rl, sd = sd_r, log = FALSE)
-      #     
-      #     SNR_exp <- x_rl - c[index]
-      #     SNR_measured <- rl - c[index]
-      #     p_filtered <- p_bear * p_rl * (U * pnorm(SNR_measured, mean = B, sd = Q)) / 
-      #       (U * pnorm(SNR_exp, mean = B, sd = Q))
-      # 
-      #     return(sum(log(p_filtered)))
-      #   })
-      # } else {part_bearings_received_levels <- 0}
-      # 
-      # part_2 <- 0
-      # part_3 <- part_bearings_received_levels
-      # part_3[part_3 == -Inf] <- neg_inf
       ## Part 4: the effective sampled area given c_i, a|c_i
       if (USE_RL) {
         # Calculate log(p.) + log(D) + log(f(s)) + log(source level increments)

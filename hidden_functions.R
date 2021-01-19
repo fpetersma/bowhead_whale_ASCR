@@ -28,7 +28,7 @@
   return(as.vector(D))
 }
 
-.gSNR <- function(snr, par, type = "probit", ...) {
+.gSNR <- function(snr, par, type = "simple", ...) {
   # Description:
   #   
   
@@ -39,7 +39,7 @@
   
   if (type == "simple") {
     g0 <- par["g0"]
-    g <- g0 * (1 - pnorm((15 - snr) / args$sd_r)) # finds sd_r in global.env
+    g <- g0 * (1 - pnorm((args$trunc_level - snr) / args$sd_r)) # finds sd_r and trunc_level in ...
   } else {
     U <- par["U"]
     B <- par["B"]
@@ -60,7 +60,6 @@
       if (Q <= 0) {stop("The growth parameter Q should be larger than 1!")}
       
       g <- U * plogis(snr, B, Q)
-      # g <- U / (1 + exp(-Q * (snr - B)))
     }
     if (type == "janoschek") {
       # Input checks
@@ -110,45 +109,6 @@
   
   return(g)
 }
-
-# # Using row operations DONT USE, COLWISE VERSIN IS FASTER
-# .detected <- function(probs, min_no_detections) {
-#   
-#   # Description:
-#   
-#   # Inputs:
-#   
-#   # Outputs:
-#   
-#   K <- ncol(probs)
-#   
-#   # Create all combinations of detections and non-detections
-#   dummies <- as.matrix(expand.grid(rep(list(1:0), K)))
-#   
-#   # Only keep row with less than three detections
-#   dummies <- dummies[rowSums(dummies) < min_no_detections, ]
-#   
-#   # Calculate the probabilities of detection animals less than the min_no_detections
-#   temp <- apply(probs, 1, function(p1) {
-#     p0 <- 1 - p1
-#     out <- matrix(rep(p0, nrow(dummies)), nrow(dummies), byrow = TRUE)
-#     temp <- matrix(rep(p1, nrow(dummies)), nrow(dummies), byrow = TRUE)
-#     out[as.logical(dummies)] <- temp[as.logical(dummies)]
-#     # Take the product of all probabilities
-#     return(sum(apply(out, 1, prod)))
-#   
-#   })
-#   # Calculate probability that it was detected at least twice
-#   p. <- 1 - temp
-#   
-#   # When probabiltiies of detection are really small, the probability of not
-#   # seen is 1, such that 1 - 1 - P(seen once) < 0. This is of course impossible,
-#   # a probability can never be negative, so I now simply set everything < 0
-#   # equal to zero. Not sure if this is a very nice way to handle this.
-#   p.[p. < 0] <- 0
-#   
-#   return(p.)
-# }
 
 # Using column operations (should be faster)
 .detected <- function(probs, min_no_detections) {

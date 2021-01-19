@@ -14,20 +14,21 @@ source("Scripts/Bowhead Whales/plotDensity.R")
 source("Scripts/Bowhead Whales/simulateData.R")
 
 if (SINGLE_SL) {
-  source("Scripts/Bowhead Whales/bwASCRNoSL.R")
-  source("Scripts/Bowhead Whales/llkLSEParallelSmoothNoSL.R")
+  source("Scripts/Bowhead Whales/bwASCRSingleSL.R")
+  source("Scripts/Bowhead Whales/llkSNRSingleSL.R")
 } else {
   source("Scripts/Bowhead Whales/bwASCR.R")
-  source("Scripts/Bowhead Whales/llkLSEParallelSmooth.R")
+  source("Scripts/Bowhead Whales/llkSNR.R")
 }
 
-mesh_file <- "Data/JABES paper/grid_adaptive_levels=3_bounds=10k-60k_maxD2C=100k_maxD2A=200k_area=44145.6_n=180+139+146=465.csv"
+mesh_file <- "Data/grid_adaptive_levels=3_bounds=10k-60k_maxD2C=100k_maxD2A=200k_area=44145.6_n=180+139+146=465.csv"
 
 ## Define some constants
-seed <- 12328
+seed <- 12322
 # sample_size <- 30
 min_no_detections <- 2
 # max_depth <- 150
+trunc_level <- 15
 
 ## Load a fine grid of the study area
 mesh <- read.csv(mesh_file)
@@ -54,8 +55,8 @@ f_density <- D ~ 1
 # f_density <- D ~ depth + depth2
 
 # set det function!
-# det_function <- "simple"
-det_function<- "probit"
+det_function <- "simple"
+# det_function<- "probit"
 # det_function <- "half-normal"
 # det_function <- "logit"
 # det_function <- "janoschek"
@@ -86,8 +87,8 @@ if (det_function == "janoschek") {
 }
 
 # Distribution of mean noise level per call
-par_noise <- c(mu = 65,
-               sd = 8,
+par_noise <- c(mu = 60,
+               sd = 0.000001,
                lower = 0,
                upper = Inf)
 
@@ -118,7 +119,8 @@ set.seed(seed)
 dat_sim <- simulateData(par = par, f_density = f_density, cov_density = cov_density,
                         min_no_detections = min_no_detections, 
                         SINGLE_SL = SINGLE_SL, 
-                        detectors = detectors, det_function = det_function)
+                        detectors = detectors, det_function = det_function,
+                        trunc_level = trunc_level)
 
 ################# Fit ASCR model to the simulated data #########################
 # sample_size <- nrow(dat_sim$det_hist) # 30
@@ -160,8 +162,8 @@ A_s <- 3
 A_x <- subset(mesh, select = c(area, long, lat))
 # A_x$area <- 56.21183
 
-# det_function <- "simple"
-det_function <- "probit"
+det_function <- "simple"
+# det_function <- "probit"
 # det_function <- "janoschek"
 # det_function <- "logit"
 # det_function <- "half-normal"
@@ -177,7 +179,7 @@ dat <- list(det_hist = det_hist,
             A_s = A_s,
             f_density = f_density,
             det_function = det_function,
-            bearings = bearings_hist,
+            # bearings = bearings_hist,
             min_no_detections = min_no_detections)
 
 
@@ -200,23 +202,23 @@ if(det_function == "janoschek") {
 }
 
 # Start values for density function
-par_dens_start <- c("(Intercept)" = -2)
+par_dens_start <- c("(Intercept)" = -2.5)
 # par_dens_start <- c("(Intercept)" = -2.5, "distance_to_coast" = 3, "distance_to_coast2" = -3)
 # par_dens_start <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
 
 # Start values for received level
-par_rl_start <- c(beta_r = log(15),
+par_rl_start <- c(beta_r = log(10),
                   sd_r = log(3))
 
 # Start values for source level
-par_sl_start <- c(mu_s = log(140), # identity
+par_sl_start <- c(mu_s = log(135), # identity
                   sd_s = log(5)) # log
 
 # Start values for bearing
 par_bear_start <- c(kappa = log(10)) # log
 
 par_start <- list(par_det = par_det_start,
-                  par_bear = par_bear_start,
+                  # par_bear = par_bear_start,
                   par_rl = par_rl_start,
                   par_sl = par_sl_start,
                   par_dens = par_dens_start)
