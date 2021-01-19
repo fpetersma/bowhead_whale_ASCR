@@ -273,9 +273,6 @@
         # Get noise for call i
         c <- noise_call[i, ]
         
-        # Get snr
-        snr <- rl - c[index]
-        
       } else if (USE_RL & USE_BEARINGS) {
         # Get received levels and bearings for call i
         bearings <- bearings_rad[i, index]
@@ -285,9 +282,6 @@
         
         # Get noise for call i
         c <- noise_call[i, ]
-        
-        # Get snr
-        snr <- rl - c[index]
         
       } else {
         #################### Derive det_probs and p. #############################
@@ -384,27 +378,27 @@
       # Replace -Inf with neg_inf, to avoid NA later on
       part_2[part_2 == -Inf] <- neg_inf
       
-      ## Part 3: signal to noise and source level !THIS IS THE SLOW PART!
+      ## Part 3: received levels and source level !THIS IS THE SLOW PART!
       if (USE_RL) {
-        part_snr_levels <- t(apply(E_snr[, index], c(1), function(x) {
+        part_received_levels <- t(apply(E_rl[, index], c(1), function(x) {
           
-          p <- dnorm(x = snr, mean = x, sd = sd_r, log = TRUE)
-          # rl_exp <- x #- c[index]
-          snr_exp <- x #- c[index]
+          p <- dnorm(x = rl, mean = x, sd = sd_r, log = TRUE)
+          rl_exp <- x #- c[index]
+          # snr_exp <- x - c[index]
           # # SNR_measured <- rl - c[index]
           # p <- p - log(1 * (1 - pnorm((trunc_level - SNR_exp) / sd_r))) #+
           #   # log(U * pnorm(SNR_measured, mean = B, sd = Q))
           
           if (det_function == "simple") {
             # p <- p + log(g0) - log(g0 * (1 - pnorm((runc_level - SNR_exp) / sd_r)))
-            p <- p + log(g0) - log(g0 * (pnorm(snr_trunc_level,
-                                               mean = snr_exp,
+            p <- p + log(g0) - log(g0 * (pnorm(rl_trunc_level,
+                                               mean = rl_exp,
                                                sd = sd_r, lower.tail = FALSE)))
           } 
           return(sum(p))
         }))
         
-        part_3 <- part_snr_levels
+        part_3 <- part_received_levels
       } else {
         part_3 <- matrix(0, nrow = n_grid, ncol = n_sl)
       }
