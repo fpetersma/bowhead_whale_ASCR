@@ -10,9 +10,7 @@
 #' Fits an acoustic spatial capture recapture model to bowhead whale call data 
 #' collected by Greeneridge from 2007 to 2014. The method requires information
 #' on the observed detection histories, received levels, and noise recordings,
-#' and information on the latent spatial origins and source levels of the calls.
-#' 
-#' This version does not allow for a distribution on source level. 
+#' and information on the latent spatial origins and source levels of the calls. 
 #' 
 #' Fits an acoustic spatial capture-recapture model to the data, using a list of 
 #' start values. Functionality was added to allow for different optimising 
@@ -41,10 +39,11 @@
 #' @export
 bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                    LSE = TRUE) {
+
   # REMEMBER TO UPDATE CERTAIN BITS DEPENDING ON WHICH llk...R SCRIPT WILL BE USED
   # LINES TO UPDATE: 80 (which pars to include), 159 (which confidence bounds to use),
   #                  146 (which llk....R script to use).
-
+  
   ################## Load libraries and perform input checks ###################
   library(dplyr)
   library(mgcv)
@@ -96,8 +95,8 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   par <- unlist(par)
   names(par) <- gsub(".*\\.", "", names(par))
   ## TO KEEP SOME PARAMETERS FIXED, USE LINE BELOW TO SELECT WHICH PARAMETERS TO ESTIMATE
-  # par <- par[!names(par) %in% c("sd_r")] # USE ONLY FOR SIMULATIONS
-  par <- par[!names(par) %in% c("sd_s")] # USE ONLY FOR SINGLE SOURCE LEVEL
+  # par <- par[names(par) %in% c("g0", "sigma" , "kappa", "(Intercept)", "dist_to_coast", "dist_to_coast2")] # USE ONLY FOR SIMULATIONS
+  # par <- par[!names(par) %in% c("sd_r")] # USE ONLY FOR SINGLE SOURCE LEVEL
   
   # Create a matrix of distances
   distances <- pointDistance(p1 = dat$cov_density[, c("long", "lat")], 
@@ -152,7 +151,8 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
     dat[["smooth_terms"]] <- paste0(gam_fit$smooth[[1]]$label, ".", 1:(k - 1))
     names(gam_par) <- dat$smooth_terms
     
-    par <- c(par, gam_par)
+    # par <- c(par, gam_par)
+    par <- c(par, gam_fit$coefficients[names(gam_fit$coefficients) != "(Intercept)"])
   } else {dat[["smooth_terms"]] <- NULL}
   
   dat[["design"]] <- model.matrix(gam_fit)
@@ -162,9 +162,10 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   dat[["TRACE"]] <- TRACE
   
   if (LSE) {
-    fn <- .llkRLSingleSL
+    fn <- .llkLSEParallelSmooth
   } else {
-    stop("Non LSE version not available.")
+    stop("Non LSE version not available yet.")
+    #fn <- .loglikelihood_with_bearings
   }
   
   # Remove density from par if density is constant STILL NEEDS IMPLEMENTATION
@@ -186,13 +187,13 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
     # Use bounds to limit search space to sensible space
     result <- optim(par = par, fn = fn, method = method, hessian = USE_MLE_SD,
                     control = list(maxit = maxit, fnscale = -1, trace = TRACE, 
-                                   REPORT = 1, factr = 1e9),
+                                   REPORT = 1, factr = 1e10),
                     # lower = c(U = -5, B = -5, Q = log(0.01), kappa = log(5), 
-                    #           beta_r = log(5), mu_s = log(50),#, sd_r = log(0.01)
-                    #           rep(-Inf, 100)), # this gives 0 on log and logit link
-                    # upper = c(U = 5, B = 5, Q = log(10), kappa = log(100), 
-                    #           beta_r = log(30), mu_s  = log(200), #sd_r = log(50),
-                    #           rep(Inf, 100)), # this gives 2.7e10 on log and 1 on logit
+                    #           beta_r = log(1), mu_s = log(50), sd_r = log(0.01),
+                    #           sd_s = log(0.01), rep(-Inf, 100)), # this gives 0 on log and logit link
+                    # upper = c(U = 5, B = 5, Q = log(10000), kappa = log(100), 
+                    #           beta_r = log(50), mu_s  = log(300), sd_r = log(50),
+                    #           sd_s = log(50), rep(Inf, 100)), # this gives 2.7e10 on log and 1 on logit
                     dat = dat)
   })
   
@@ -204,7 +205,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   
   if (USE_MLE_SD) {
     hess <- result$hessian
-  
+    
     # When maximising a likelihood then the covariance matrix of the 
     # estimates is (asymptotically) the inverse of information matrix.
     K <- length(par) # number of parameters
@@ -315,7 +316,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                  covariance_matrix = covariance_matrix, density = D, 
                  det_function = dat$det_function, design_matrix = design, 
                  ESA = esa, optim_result = result, fit_duration = fit_duration, 
-                 data = dat, par_hist = read.csv(paste0("parameter_history_", dat$f_density[3], ".csv"), 
+                 data = dat, par_hist = read.csv("parameter_history.csv", 
                                                  header = TRUE))
   class(output) <- "bwASCR_model"
   

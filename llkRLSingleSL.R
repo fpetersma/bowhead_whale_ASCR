@@ -6,13 +6,13 @@
 #### At the noise level it would be a six dimensional smooth and for the grid
 #### points is would be a two dimensional smooth. 
 
-# # for test runs
+# for test runs -------------
 # par <- par
 # dat <- dat
 # rm(list = setdiff(ls(), c("dat", "par")))
 
 # The 'fast' loglikelihood (not really, but faster than otherwise)
-.llkSNRSingleSL <- function(par, dat) {
+.llkRLSingleSL <- function(par, dat) {
   
   # Description:
   #   
@@ -165,71 +165,118 @@
       ## 60secs, roughly 3 times as long. This will only increase as the size
       ## or noise_random increases.
       
-      ## Initiate parallel process leaving one core free
-      no_cores <- cores#detectCores() - 1
-      cl <- makeCluster(no_cores)
+      # OLD VERSION ------------------------------------------------------------
+      # ## Initiate parallel process leaving one core free
+      # no_cores <- cores#detectCores() - 1
+      # cl <- makeCluster(no_cores)
+      # 
+      # # Export required data and functions to all clusters
+      # hidden_functions <- c(".gSNR", ".detected", ".densityGAM", ".gHN")
+      # clusterExport(cl, list = c(ls(), hidden_functions), envir = environment()) 
+      # 
+      # # Turn noise random in a t(data frame) and then into a list to create a 
+      # # list with the noise for six detectors as a vector in every element.
+      # noise_random_list <- as.list(as.data.frame(t(noise_random)))
+      # 
+      # # Start parallel process over noise_random
+      # rates_noise <- parLapply(cl, noise_random_list, function(c) {
+      #   
+      #   # Create matrix with identical noise in every row
+      #   c_m <- matrix(c, nrow = n_grid, ncol = n_det, byrow = TRUE)
+      #   
+      #   E_rl <- mu_s - beta_r * log(distances, base = 10)
+      #   
+      #   E_snr <- E_rl - c_m
+      #   
+      #   # Derive the associated detection probabilities 
+      #   if (det_function == "janoschek" | det_function == "logit" | 
+      #       det_function == "probit" | det_function == "simple") {
+      #     det_probs <- .gSNR(snr = E_rl, 
+      #                        par = par_det,
+      #                        type = det_function, 
+      #                        sd_r = sd_r,
+      #                        trunc_level = rl_trunc_level)
+      #   } else if (det_function == "half-normal") {
+      #     # Create same distance array for every source level
+      #     distance_array <- array(data = NA,
+      #                             dim = c(n_sl, n_grid, n_det),
+      #                             dimnames = list("source_level" = source_levels, 
+      #                                             "grid_point" = 1:n_grid, 
+      #                                             "detector" = 1:n_det))
+      #     for (i in 1:n_sl) {
+      #       distance_array[i, , ] <- distances
+      #     }
+      #     det_probs <- .gHN(distances = distance_array, 
+      #                       par = par_det)
+      #   }
+      #   
+      #   # Derive probabilities that a call was detected at least 
+      #   # min_no_detections times for all source levels
+      #   p. <- .detected(probs = det_probs, 
+      #                   min_no_detections = min_no_detections)
+      #   
+      #   # Run some test whether the data is correct
+      #   if (any(det_probs < 0)) {
+      #     print("At least one element in det_probs is negative!")
+      #   }
+      #   if (any(p. < 0)) {
+      #     print("At least one element in p. is negative!")
+      #   }
+      #   
+      #   # Create a matrix of all products of D, p. and f(s)
+      #   pred <- p. * D * A_x$area
+      #   
+      #   return(sum(pred))
+      # }) 
+      # # Stop parallel process
+      # stopCluster(cl)
+      # 
+      # # Sum the output together 
+      # rate <- mean(unlist(rates_noise))
+      # END OLD VERSION --------------------------------------------------------
       
-      # Export required data and functions to all clusters
-      hidden_functions <- c(".gSNR", ".detected", ".densityGAM", ".gHN")
-      clusterExport(cl, list = c(ls(), hidden_functions), envir = environment()) 
+      # NEW VERSION, WITHOUT NOISE ---------------------------------------------
+      E_rl <- mu_s - beta_r * log(distances, base = 10)
       
-      # Turn noise random in a t(data frame) and then into a list to create a 
-      # list with the noise for six detectors as a vector in every element.
-      noise_random_list <- as.list(as.data.frame(t(noise_random)))
-      
-      # Start parallel process over noise_random
-      rates_noise <- parLapply(cl, noise_random_list, function(c) {
-        
-        # Create matrix with identical noise in every row
-        c_m <- matrix(c, nrow = n_grid, ncol = n_det, byrow = TRUE)
-        
-        E_snr <- mu_s - beta_r * log(distances, base = 10) - c_m
-        
-        # Derive the associated detection probabilities 
-        if (det_function == "janoschek" | det_function == "logit" | 
-            det_function == "probit" | det_function == "simple") {
-          det_probs <- .gSNR(snr = E_snr, 
-                             par = par_det,
-                             type = det_function, 
-                             sd_r = sd_r,
-                             trunc_level = snr_trunc_level)
-        } else if (det_function == "half-normal") {
-          # Create same distance array for every source level
-          distance_array <- array(data = NA,
-                                  dim = c(n_sl, n_grid, n_det),
-                                  dimnames = list("source_level" = source_levels, 
-                                                  "grid_point" = 1:n_grid, 
-                                                  "detector" = 1:n_det))
-          for (i in 1:n_sl) {
-            distance_array[i, , ] <- distances
-          }
-          det_probs <- .gHN(distances = distance_array, 
-                            par = par_det)
+      # Derive the associated detection probabilities 
+      if (det_function == "janoschek" | det_function == "logit" | 
+          det_function == "probit" | det_function == "simple") {
+        det_probs <- .gSNR(snr = E_rl, 
+                           par = par_det,
+                           type = det_function, 
+                           sd_r = sd_r,
+                           trunc_level = rl_trunc_level)
+      } else if (det_function == "half-normal") {
+        # Create same distance array for every source level
+        distance_array <- array(data = NA,
+                                dim = c(n_sl, n_grid, n_det),
+                                dimnames = list("source_level" = source_levels, 
+                                                "grid_point" = 1:n_grid, 
+                                                "detector" = 1:n_det))
+        for (i in 1:n_sl) {
+          distance_array[i, , ] <- distances
         }
-        
-        # Derive probabilities that a call was detected at least 
-        # min_no_detections times for all source levels
-        p. <- .detected(probs = det_probs, 
-                        min_no_detections = min_no_detections)
-        
-        # Run some test whether the data is correct
-        if (any(det_probs < 0)) {
-          print("At least one element in det_probs is negative!")
-        }
-        if (any(p. < 0)) {
-          print("At least one element in p. is negative!")
-        }
-        
-        # Create a matrix of all products of D, p. and f(s)
-        pred <- p. * D * A_x$area
-        
-        return(sum(pred))
-      }) 
-      # Stop parallel process
-      stopCluster(cl)
+        det_probs <- .gHN(distances = distance_array, 
+                          par = par_det)
+      }
       
-      # Sum the output together 
-      rate <- mean(unlist(rates_noise))
+      # Derive probabilities that a call was detected at least 
+      # min_no_detections times for all source levels
+      p. <- .detected(probs = det_probs, 
+                      min_no_detections = min_no_detections)
+      
+      # Run some test whether the data is correct
+      if (any(det_probs < 0)) {
+        print("At least one element in det_probs is negative!")
+      }
+      if (any(p. < 0)) {
+        print("At least one element in p. is negative!")
+      }
+      
+      # Create a matrix of all products of D, p. and f(s)
+      pred <- p. * D * A_x$area
+      
+      rate <- sum(pred)
       
       # Derive the probability density for the number of detections given the rate
       llk_n <- dpois(n_call, rate, log = TRUE)
@@ -237,8 +284,8 @@
       # not accept non-real values
       
       # Clear environment
-      rm("rate", "cl", "rates_noise", "no_cores", "hidden_functions", 
-         "noise_random_list")
+      # rm("rate", "cl", "rates_noise", "no_cores", "hidden_functions", 
+      #    "noise_random_list")
     } else {llk_n <- 0}
     # })
     ##############################################################################
@@ -299,11 +346,11 @@
         # system.time({
         if (det_function == "janoschek" | det_function == "logit" |
             det_function == "probit" | det_function == "simple") {
-          det_probs <- .gSNR(snr = E_snr, 
+          det_probs <- .gSNR(snr = E_rl, 
                              par = par_det,
                              type = det_function, 
                              sd_r = sd_r,
-                             trunc_level = snr_trunc_level)
+                             trunc_level = rl_trunc_level)
         } else if (det_function == "half-normal") {
           # Create same distance array for every source level
           distance_array <- array(data = NA,
@@ -380,10 +427,10 @@
       
       ## Part 3: received levels and source level !THIS IS THE SLOW PART!
       if (USE_RL) {
-        part_received_levels <- t(apply(E_rl[, index], c(1), function(x) {
+        part_received_levels <- t(apply(E_rl[, index], c(1), function(rl_exp) {
           
-          p <- dnorm(x = rl, mean = x, sd = sd_r, log = TRUE)
-          rl_exp <- x #- c[index]
+          p <- dnorm(x = rl, mean = rl_exp, sd = sd_r, log = TRUE)
+          # rl_exp <- x #- c[index]
           # snr_exp <- x - c[index]
           # # SNR_measured <- rl - c[index]
           # p <- p - log(1 * (1 - pnorm((trunc_level - SNR_exp) / sd_r))) #+

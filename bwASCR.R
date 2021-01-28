@@ -56,6 +56,22 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
     stop()
   }
   
+  COMPLETE_DATA <- all(names(data) %in% c("det_hist",
+                                          "detectors",
+                                          "cov_density",
+                                          "received_levels",
+                                          # "noise_call",
+                                          # "noise_random",
+                                          # "source_levels",
+                                          "A_x",
+                                          # "A_s",
+                                          "f_density",
+                                          "det_function",
+                                          # "bearings",
+                                          "min_no_detections"))
+  
+  if (!COMPLETE_DATA) {stop("'dat' argument is incomplete!")}
+  
   # Use normal MLE standard error?
   USE_MLE_SD <- FALSE
   
@@ -96,7 +112,10 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   names(par) <- gsub(".*\\.", "", names(par))
   ## TO KEEP SOME PARAMETERS FIXED, USE LINE BELOW TO SELECT WHICH PARAMETERS TO ESTIMATE
   # par <- par[names(par) %in% c("g0", "sigma" , "kappa", "(Intercept)", "dist_to_coast", "dist_to_coast2")] # USE ONLY FOR SIMULATIONS
-  # par <- par[!names(par) %in% c("sd_r")] # USE ONLY FOR SINGLE SOURCE LEVEL
+  
+  if (dat$SINGLE_SL) {
+    par <- par[!names(par) %in% c("sd_s")] # USE ONLY FOR SINGLE SOURCE LEVEL
+  }
   
   # Create a matrix of distances
   distances <- pointDistance(p1 = dat$cov_density[, c("long", "lat")], 
@@ -162,7 +181,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   dat[["TRACE"]] <- TRACE
   
   if (LSE) {
-    fn <- .llkLSEParallelSmooth
+    fn <- .llkParallelSmooth
   } else {
     stop("Non LSE version not available yet.")
     #fn <- .loglikelihood_with_bearings
@@ -187,7 +206,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
     # Use bounds to limit search space to sensible space
     result <- optim(par = par, fn = fn, method = method, hessian = USE_MLE_SD,
                     control = list(maxit = maxit, fnscale = -1, trace = TRACE, 
-                                   REPORT = 1, factr = 1e10),
+                                   REPORT = 1, factr = 1e9),
                     # lower = c(U = -5, B = -5, Q = log(0.01), kappa = log(5), 
                     #           beta_r = log(1), mu_s = log(50), sd_r = log(0.01),
                     #           sd_s = log(0.01), rep(-Inf, 100)), # this gives 0 on log and logit link
@@ -316,7 +335,8 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                  covariance_matrix = covariance_matrix, density = D, 
                  det_function = dat$det_function, design_matrix = design, 
                  ESA = esa, optim_result = result, fit_duration = fit_duration, 
-                 data = dat, par_hist = read.csv("parameter_history.csv", 
+                 data = dat, par_hist = read.csv(paste0("parameter_history_", 
+                                                        dat$f_density[3], ".csv"), 
                                                  header = TRUE))
   class(output) <- "bwASCR_model"
   

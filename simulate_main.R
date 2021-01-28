@@ -7,28 +7,31 @@ library("readr")
 library("matrixStats")
 library("truncnorm")
 
-SINGLE_SL <- TRUE
-
-source("Scripts/Bowhead Whales/hidden_functions.R")
-source("Scripts/Bowhead Whales/plotDensity.R")
-source("Scripts/Bowhead Whales/simulateData.R")
-
-if (SINGLE_SL) {
-  source("Scripts/Bowhead Whales/bwASCRSingleSL.R")
-  source("Scripts/Bowhead Whales/llkSNRSingleSL.R")
-} else {
-  source("Scripts/Bowhead Whales/bwASCR.R")
-  source("Scripts/Bowhead Whales/llkSNR.R")
-}
-
-mesh_file <- "Data/grid_adaptive_levels=3_bounds=10k-60k_maxD2C=100k_maxD2A=200k_area=44145.6_n=180+139+146=465.csv"
-
 ## Define some constants
-seed <- 12322
+seed <- 707708
 # sample_size <- 30
 min_no_detections <- 2
 # max_depth <- 150
 trunc_level <- 15
+SINGLE_SL <- TRUE
+WITH_NOISE <- TRUE
+
+source("Scripts/Bowhead Whales/hidden_functions.R")
+source("Scripts/Bowhead Whales/plotDensity.R")
+source("Scripts/Bowhead Whales/simulateData.R")
+source("Scripts/Bowhead Whales/bwASCR.R")
+source("Scripts/Bowhead Whales/llkParallelSmooth.R")
+
+# if (SINGLE_SL) {
+#   source("Scripts/Bowhead Whales/bwASCRSingleSL.R")
+#   source("Scripts/Bowhead Whales/llkSNRSingleSL.R")
+#   source("Scripts/Bowhead Whales/llkRLSingleSL.R")
+# } else {
+#   source("Scripts/Bowhead Whales/bwASCR.R")
+#   source("Scripts/Bowhead Whales/llkSNR.R")
+# }
+
+mesh_file <- "Data/grid_adaptive_levels=3_bounds=10k-60k_maxD2C=100k_maxD2A=200k_area=44145.6_n=180+139+146=465.csv"
 
 ## Load a fine grid of the study area
 mesh <- read.csv(mesh_file)
@@ -87,8 +90,8 @@ if (det_function == "janoschek") {
 }
 
 # Distribution of mean noise level per call
-par_noise <- c(mu = 60,
-               sd = 0.000001,
+par_noise <- c(mu = 65,
+               sd = 5,
                lower = 0,
                upper = Inf)
 
@@ -118,7 +121,7 @@ set.seed(seed)
 ################ Run the simulation using simulateData.R #######################
 dat_sim <- simulateData(par = par, f_density = f_density, cov_density = cov_density,
                         min_no_detections = min_no_detections, 
-                        SINGLE_SL = SINGLE_SL, 
+                        SINGLE_SL = SINGLE_SL, WITH_NOISE = WITH_NOISE,
                         detectors = detectors, det_function = det_function,
                         trunc_level = trunc_level)
 
@@ -129,7 +132,7 @@ dat_sim <- simulateData(par = par, f_density = f_density, cov_density = cov_dens
 det_hist <- dat_sim$det_hist#[index, ]
 bearings_hist <- dat_sim$bearings#[index, ]
 noise_call <- dat_sim$noise_call#[index, ]
-noise_random <- dat_sim$noise_random[1:200, ]
+noise_random <- dat_sim$noise_random[1:100, ]
 received_levels_hist <- dat_sim$received_levels#[index, ]
 
 DASAR <- as.data.frame(read_tsv("Data/DASARs.txt"))
@@ -180,7 +183,10 @@ dat <- list(det_hist = det_hist,
             f_density = f_density,
             det_function = det_function,
             # bearings = bearings_hist,
-            min_no_detections = min_no_detections)
+            min_no_detections = min_no_detections,
+            SINGLE_SL = SINGLE_SL,
+            WITH_NOISE = WITH_NOISE,
+            trunc_level = trunc_level)
 
 
 # Start values for detection function

@@ -166,7 +166,7 @@
       ## or noise_random increases.
       
       ## Initiate parallel process leaving one core free
-      no_cores <- cores#detectCores() - 1
+      no_cores <- cores #detectCores() - 1
       cl <- makeCluster(no_cores)
       
       # Export required data and functions to all clusters
@@ -386,11 +386,11 @@
       
       ## Part 3: signal to noise and source level !THIS IS THE SLOW PART!
       if (USE_RL) {
-        part_snr_levels <- t(apply(E_snr[, index], c(1), function(x) {
+        part_snr_levels <- t(apply(E_snr[, index], c(1), function(snr_exp) {
           
-          p <- dnorm(x = snr, mean = x, sd = sd_r, log = TRUE)
+          p <- dnorm(x = snr, mean = snr_exp, sd = sd_r, log = TRUE)
           # rl_exp <- x #- c[index]
-          snr_exp <- x #- c[index]
+          # snr_exp <- x #- c[index]
           # # SNR_measured <- rl - c[index]
           # p <- p - log(1 * (1 - pnorm((trunc_level - SNR_exp) / sd_r))) #+
           #   # log(U * pnorm(SNR_measured, mean = B, sd = Q))

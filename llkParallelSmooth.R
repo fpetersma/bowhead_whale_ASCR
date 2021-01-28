@@ -6,13 +6,13 @@
 #### At the noise level it would be a six dimensional smooth and for the grid
 #### points is would be a two dimensional smooth. 
 
-# # for test runs
+# for test runs
 # par <- par
 # dat <- dat
 # rm(list = setdiff(ls(), c("dat", "par")))
 
 # The 'fast' loglikelihood (not really, but faster than otherwise)
-.llkSNR <- function(par, dat) {
+.llkParallelSmooth <- function(par, dat) {
   
   # Description:
   #   
@@ -91,12 +91,11 @@
   n_det <- nrow(detectors) # number of detectors
   n_grid <- nrow(cov_density) # number of grid points
   if (USE_RL) {
+    if (!SINGLE_SL) {
+      n_sl <- length(source_levels) # number of source levels
+    }  
     if (WITH_NOISE) {
-      if (SINGLE_SL) {
-        n_noise <- nrow(noise_random) # number of random noise samples
-      } else {
-        n_sl <- length(source_levels) # number of source levels
-      }
+      n_noise <- nrow(noise_random) # number of random noise samples
     }
   }
   
@@ -198,7 +197,7 @@
         cl <- makeCluster(no_cores)
         
         # Export required data and functions to all clusters
-        hidden_functions <- c(".gSNR", ".detected", ".densityGAM", ".gHN")
+        hidden_functions <- c(".gSound", ".detected", ".densityGAM", ".gHN")
         clusterExport(cl, list = c(ls(), hidden_functions), envir = environment()) 
         
         # Turn noise random in a t(data frame) and then into a list to create a 
@@ -217,7 +216,7 @@
             # Derive the associated detection probabilities 
             if (det_function == "janoschek" | det_function == "logit" | 
                 det_function == "probit" | det_function == "simple") {
-              det_probs <- .gSNR(snr = E_snr, 
+              det_probs <- .gSound(level = E_snr, 
                                  par = par_det,
                                  type = det_function, 
                                  sd_r = sd_r,
@@ -276,9 +275,10 @@
             # Derive the associated detection probabilities 
             if (det_function == "janoschek" | det_function == "logit" | 
                 det_function == "probit" | det_function == "simple") {
-              det_probs <- .gSNR(snr = E_snr, 
+              det_probs <- .gSound(level = E_snr, 
                                  par = par_det,
-                                 type = det_function, sd_r = sd_r,
+                                 type = det_function, 
+                                 sd_r = sd_r,
                                  trunc_level = trunc_level)
             } else if (det_function == "half-normal") {
               # Create same distance array for every source level
@@ -355,11 +355,11 @@
           # Derive the associated detection probabilities 
           if (det_function == "janoschek" | det_function == "logit" | 
               det_function == "probit" | det_function == "simple") {
-            det_probs <- .gSNR(snr = E_rl, 
+            det_probs <- .gSound(level = E_rl, 
                                par = par_det,
                                type = det_function, 
                                sd_r = sd_r,
-                               trunc_level = rl_trunc_level)
+                               trunc_level = trunc_level)
           } else if (det_function == "half-normal") {
             # Create same distance array for every source level
             distance_array <- array(data = NA,
@@ -410,9 +410,10 @@
           # Derive the associated detection probabilities 
           if (det_function == "janoschek" | det_function == "logit" | 
               det_function == "probit" | det_function == "simple") {
-            det_probs <- .gSNR(snr = E_rl, 
+            det_probs <- .gSound(level = E_rl, 
                                par = par_det,
-                               type = det_function, sd_r = sd_r,
+                               type = det_function, 
+                               sd_r = sd_r,
                                trunc_level = trunc_level)
           } else if (det_function == "half-normal") {
             # Create same distance array for every source level
@@ -498,7 +499,7 @@
     cl <- makeCluster(no_cores)
     
     # Export required data and functions to all clusters
-    hidden_functions <- c(".gSNR", ".detected", ".densityGAM", ".gHN")
+    hidden_functions <- c(".gSound", ".detected", ".densityGAM", ".gHN")
     clusterExport(cl, list = c(ls(), hidden_functions), envir = environment()) 
     
     # Start parallel process over number of calls 
@@ -551,7 +552,7 @@
             # Derive the associated detection probabilities 
             if (det_function == "janoschek" | det_function == "logit" |
                 det_function == "probit" | det_function == "simple") {
-              det_probs <- .gSNR(snr = E_snr, 
+              det_probs <- .gSound(level = E_snr, 
                                  par = par_det,
                                  type = det_function, 
                                  sd_r = sd_r,
@@ -571,7 +572,7 @@
             # Derive the associated detection probabilities 
             if (det_function == "janoschek" | det_function == "logit" |
                 det_function == "probit" | det_function == "simple") {
-              det_probs <- .gSNR(snr = E_rl, 
+              det_probs <- .gSound(level = E_rl, 
                                  par = par_det,
                                  type = det_function, 
                                  sd_r = sd_r,
@@ -626,7 +627,7 @@
             # Derive the associated detection probabilities 
             if (det_function == "janoschek" | det_function == "logit" | 
                 det_function == "probit" | det_function == "simple") {
-              det_probs <- .gSNR(snr = E_snr, 
+              det_probs <- .gSound(level = E_snr, 
                                  par = par_det,
                                  type = det_function, 
                                  sd_r = sd_r,
@@ -660,7 +661,7 @@
             # Derive the associated detection probabilities 
             if (det_function == "janoschek" | det_function == "logit" | 
                 det_function == "probit" | det_function == "simple") {
-              det_probs <- .gSNR(snr = E_rl, 
+              det_probs <- .gSound(level = E_rl, 
                                  par = par_det,
                                  type = det_function, 
                                  sd_r = sd_r,
@@ -751,7 +752,7 @@
 
               if (det_function == "simple") {
                 # p <- p + log(g0) - log(g0 * (1 - pnorm((runc_level - SNR_exp) / sd_r)))
-                p <- p + log(g0) - log(g0 * (pnorm(snr_trunc_level,
+                p <- p + log(g0) - log(g0 * (pnorm(trunc_level,
                                                    mean = snr_exp,
                                                    sd = sd_r, lower.tail = FALSE)))
               } 

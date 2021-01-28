@@ -28,7 +28,7 @@
   return(as.vector(D))
 }
 
-.gSNR <- function(snr, par, type = "simple", ...) {
+.gSound <- function(level, par, type = "simple", ...) {
   # Description:
   #   
   
@@ -36,10 +36,10 @@
   #   
   # Outputs:
   args <- list(...)
-  
+
   if (type == "simple") {
     g0 <- par["g0"]
-    g <- g0 * (1 - pnorm((args$trunc_level - snr) / args$sd_r)) # finds sd_r and trunc_level in ...
+    g <- g0 * (1 - pnorm((args$trunc_level - level) / args$sd_r)) # finds sd_r and trunc_level in ...
   } else {
     U <- par["U"]
     B <- par["B"]
@@ -51,7 +51,7 @@
       # if (B <= 0) {stop("The inflection point parameter B should be positive!")}
       if (Q <= 0) {stop("The growth parameter Q should be larger than 1!")}
       
-      g <- U * pnorm(snr, B, Q)
+      g <- U * pnorm(level, B, Q)
     }
     if (type == "logit") {
       # Input checks
@@ -59,7 +59,7 @@
       if (B <= 0) {stop("The inflection point parameter B should be positive!")}
       if (Q <= 0) {stop("The growth parameter Q should be larger than 1!")}
       
-      g <- U * plogis(snr, B, Q)
+      g <- U * plogis(level, B, Q)
     }
     if (type == "janoschek") {
       # Input checks
@@ -67,7 +67,7 @@
       if (B <= 0) {stop("The inflection point parameter B should be positive!")}
       if (Q <= 1) {stop("The growth parameter Q should be larger than 1!")}
       
-      g <- U - (U - L) * exp(-(B / 1000) * (snr ^ Q)) # B divided by 1000 to improve convergence
+      g <- U - (U - L) * exp(-(B / 1000) * (level ^ Q)) # B divided by 1000 to improve convergence
     }
   }
   
