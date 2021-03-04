@@ -200,19 +200,53 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                 col.names = names(par))
   }
   
+  # define bounds for optim()
+  if (dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS) {
+    lower_bounds <- c(g0 = -5, 
+                      kappa = log(5),
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 5, 
+                      kappa = log(100),
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  } else if (!dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS) {
+    lower_bouds <- c(g0 = -5, 
+                     kappa = log(5),
+                     beta_r = log(1), 
+                     sd_r = log(0.01),
+                     mu_s = log(50), 
+                     sd_s = log(0.01),
+                     rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 5, 
+                      kappa = log(100),
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      sd_s = log(50),
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  }
+
+  
   ######################## Fit using optim() ###################################
   
   fit_duration <- system.time({
     # Use bounds to limit search space to sensible space
-    result <- optim(par = par, fn = fn, method = method, hessian = USE_MLE_SD,
-                    control = list(maxit = maxit, fnscale = -1, trace = TRACE, 
-                                   REPORT = 1, factr = 1e9),
-                    # lower = c(U = -5, B = -5, Q = log(0.01), kappa = log(5), 
-                    #           beta_r = log(1), mu_s = log(50), sd_r = log(0.01),
-                    #           sd_s = log(0.01), rep(-Inf, 100)), # this gives 0 on log and logit link
-                    # upper = c(U = 5, B = 5, Q = log(10000), kappa = log(100), 
-                    #           beta_r = log(50), mu_s  = log(300), sd_r = log(50),
-                    #           sd_s = log(50), rep(Inf, 100)), # this gives 2.7e10 on log and 1 on logit
+    result <- optim(par = par, 
+                    fn = fn, 
+                    method = method, 
+                    hessian = USE_MLE_SD,
+                    control = list(maxit = maxit, 
+                                   fnscale = -1, 
+                                   trace = TRACE, 
+                                   REPORT = 1, 
+                                   factr = 1e9),
+                    lower = lower_bounds, 
+                    upper = upper_bounds,
                     dat = dat)
   })
   
@@ -329,15 +363,26 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   cat("Finished the SCR fitting.\n")
   cat(paste0("Total number of calls was estimated at ", round(N["estimate"]), "\n"))
   
-  output <- list(N = N, estimates = estimates, real = real, 
-                 n_par = K, AIC = aic, AICc = aicc, BIC = bic,
-                 start_values = start_values, method = method, hessian = hess,
-                 covariance_matrix = covariance_matrix, density = D, 
-                 det_function = dat$det_function, design_matrix = design, 
-                 ESA = esa, optim_result = result, fit_duration = fit_duration, 
-                 data = dat, par_hist = read.csv(paste0("parameter_history_", 
-                                                        dat$f_density[3], ".csv"), 
-                                                 header = TRUE))
+  if (TRACE) {
+    output <- list(N = N, estimates = estimates, real = real, 
+                   n_par = K, AIC = aic, AICc = aicc, BIC = bic,
+                   start_values = start_values, method = method, hessian = hess,
+                   covariance_matrix = covariance_matrix, density = D, 
+                   det_function = dat$det_function, design_matrix = design, 
+                   ESA = esa, optim_result = result, fit_duration = fit_duration, 
+                   data = dat, par_hist = read.csv(paste0("parameter_history_", 
+                                                          dat$f_density[3], ".csv"), 
+                                                   header = TRUE))
+  } else {
+    output <- list(N = N, estimates = estimates, real = real, 
+                   n_par = K, AIC = aic, AICc = aicc, BIC = bic,
+                   start_values = start_values, method = method, hessian = hess,
+                   covariance_matrix = covariance_matrix, density = D, 
+                   det_function = dat$det_function, design_matrix = design, 
+                   ESA = esa, optim_result = result, fit_duration = fit_duration, 
+                   data = dat, par_hist = NA)
+  }
+  
   class(output) <- "bwASCR_model"
   
   return(output)

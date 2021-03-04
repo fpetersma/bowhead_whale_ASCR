@@ -35,7 +35,7 @@
   library(raster)
   
   # Define very small error to be added to values
-  cores <- 7
+  cores <- 6
   error <- 0
   smooth <- "none" # other options are "loess" and "gam"
   neg_inf <- -1e16

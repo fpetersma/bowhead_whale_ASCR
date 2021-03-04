@@ -8,11 +8,11 @@ library("matrixStats")
 library("truncnorm")
 
 ## Define some constants
-seed <- 707708
+# seed <- 707745
 # sample_size <- 30
 min_no_detections <- 2
 # max_depth <- 150
-trunc_level <- 15
+trunc_level <- 12
 SINGLE_SL <- TRUE
 WITH_NOISE <- TRUE
 
@@ -182,7 +182,7 @@ dat <- list(det_hist = det_hist,
             A_s = A_s,
             f_density = f_density,
             det_function = det_function,
-            # bearings = bearings_hist,
+            bearings = bearings_hist,
             min_no_detections = min_no_detections,
             SINGLE_SL = SINGLE_SL,
             WITH_NOISE = WITH_NOISE,
@@ -208,7 +208,7 @@ if(det_function == "janoschek") {
 }
 
 # Start values for density function
-par_dens_start <- c("(Intercept)" = -2.5)
+par_dens_start <- c("(Intercept)" = -1.5)
 # par_dens_start <- c("(Intercept)" = -2.5, "distance_to_coast" = 3, "distance_to_coast2" = -3)
 # par_dens_start <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
 
@@ -224,7 +224,7 @@ par_sl_start <- c(mu_s = log(135), # identity
 par_bear_start <- c(kappa = log(10)) # log
 
 par_start <- list(par_det = par_det_start,
-                  # par_bear = par_bear_start,
+                  par_bear = par_bear_start,
                   par_rl = par_rl_start,
                   par_sl = par_sl_start,
                   par_dens = par_dens_start)
@@ -232,7 +232,7 @@ par_start <- list(par_det = par_det_start,
 ######################## Run bw_scr() on subset data ##########################
 method = "L-BFGS-B"
 maxit = 100
-TRACE = 6
+TRACE = 0
 LSE = TRUE
 
 system.time({
