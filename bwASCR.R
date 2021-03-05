@@ -73,7 +73,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   if (!COMPLETE_DATA) {stop("'dat' argument is incomplete!")}
   
   # Use normal MLE standard error?
-  USE_MLE_SD <- FALSE
+  USE_MLE_SD <- TRUE
   
   ##############################################################################
   ########################## Start the fitting #################################
@@ -215,7 +215,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                       mu_s  = log(300), 
                       rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
   } else if (!dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS) {
-    lower_bouds <- c(g0 = -5, 
+    lower_bounds <- c(g0 = -5, 
                      kappa = log(5),
                      beta_r = log(1), 
                      sd_r = log(0.01),
@@ -346,7 +346,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   design <- model.matrix(gam_fit)
   
   if (USE_MLE_SD) {
-    N <- .total_N(D = D, A = dat$A_x$area, n = n,
+    N <- .totalN(D = D$density, A = dat$A_x$area, n = n,
                   covariance_matrix = covariance_matrix, design = design)
   } else {
     N <- c(estimate = sum(dat$A_x$area * D$density))

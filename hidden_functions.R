@@ -152,16 +152,16 @@
   return(p.)
 }
 
-.total_N <- function(D, A, covariance_matrix, design, n) {
+.totalN <- function(D, A, covariance_matrix, design, n) {
   # Description:
   # Inputs:
-  #   f - density formula
-  #   A - area of every grid cell
+  #   D - vector of density corresponding to A
+  #   A - area of every grid cell corresponding to D
   #   est - estimates corresponding to the densit specification
   #   n - number of calls detected at least twice
   # Input checks!
   # D <- .density_GAM(design, f, est)
-  N <- A * sum(D$density)
+  N <- sum(A * D)
   
   se <- NULL
   upper <- NULL
@@ -170,11 +170,11 @@
   try({
     # Calculate the variance of N based on Millar (2011) or Murray (2013). 
     # g(x) is defined as sum(D) [see notes]
-    density_derivatives <- unname(colSums(D$density * design))
+    density_derivatives <- unname(colSums(D * design))
     G <- c(rep(0, length = ncol(covariance_matrix) - length(density_derivatives)), 
            density_derivatives)
     v <- t(G) %*% covariance_matrix %*% G
-    v <- A ^ 2 * as.vector(v)
+    v <- mean(A) ^ 2 * as.vector(v) - N # mean(A) iis almost surely wrong, and the - N is based on eq (4) in Efford et al 2013.
     
     # Assume normal distribution of N 
     se <- sqrt(v)  
@@ -183,7 +183,7 @@
     # to include that part of the expectation in the variance. Basically, there is
     # only uncertainty in N - n. Use Murray (2013) method for lognormal interval,
     # in line with Rexstad and Burnham (1991).
-    C <- exp(1.96 * sqrt(log(1 + v / (N - n) ^ 2)))
+    C <- exp(1.96 * sqrt(log(1 + (v / (N - n)) ^ 2)))
     
     lower <- n + (N - n) / C
     upper <- n + (N - n) * C
