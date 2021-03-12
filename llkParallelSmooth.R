@@ -779,6 +779,7 @@
                                                    sd = sd_r, lower.tail = FALSE)))
               } 
               return(sum(p))
+              p <- p[p == Inf] <- -neg_inf # This line is new! [12/03/2021]
             }))
             
             part_3 <- part_received_levels
@@ -924,6 +925,7 @@
                                                    mean = rl_exp,
                                                    sd = sd_r, lower.tail = FALSE))) 
               } 
+              p <- p[p == Inf] <- -neg_inf # This line is new [12/03/2021]
               return(sum(p))
             }))
             
