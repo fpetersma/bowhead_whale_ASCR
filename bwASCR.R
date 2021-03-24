@@ -202,28 +202,52 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   
   # define bounds for optim()
   if (dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS) {
-    lower_bounds <- c(g0 = -5, 
-                      kappa = log(5),
+    lower_bounds <- c(g0 = -10, 
+                      kappa = log(2),
                       beta_r = log(1), 
                       sd_r = log(0.01),
                       mu_s = log(50), 
                       rep(-Inf, 100)) # this gives 0 on log and logit link
-    upper_bounds <- c(g0 = 5, 
+    upper_bounds <- c(g0 = 10, 
                       kappa = log(100),
                       beta_r = log(50), 
                       sd_r = log(50),
                       mu_s  = log(300), 
                       rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
   } else if (!dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS) {
-    lower_bounds <- c(g0 = -5, 
-                     kappa = log(5),
+    lower_bounds <- c(g0 = -10, 
+                     kappa = log(2),
                      beta_r = log(1), 
                      sd_r = log(0.01),
                      mu_s = log(50), 
                      sd_s = log(0.01),
                      rep(-Inf, 100)) # this gives 0 on log and logit link
-    upper_bounds <- c(g0 = 5, 
+    upper_bounds <- c(g0 = 10, 
                       kappa = log(100),
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      sd_s = log(50),
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  } else if (dat$SINGLE_SL & dat$det_function == "simple" & !USE_BEARINGS) {
+    lower_bounds <- c(g0 = -10, 
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 10, 
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  } else if (!dat$SINGLE_SL & dat$det_function == "simple" & !USE_BEARINGS) {
+    lower_bounds <- c(g0 = -10, 
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      sd_s = log(0.01),
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 10, 
                       beta_r = log(50), 
                       sd_r = log(50),
                       mu_s  = log(300), 
@@ -244,7 +268,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                                    fnscale = -1, 
                                    trace = TRACE, 
                                    REPORT = 1, 
-                                   factr = 1e9),
+                                   factr = 1e7),
                     lower = lower_bounds, 
                     upper = upper_bounds,
                     dat = dat)
