@@ -174,7 +174,7 @@
     G <- c(rep(0, length = ncol(covariance_matrix) - length(density_derivatives)), 
            density_derivatives)
     v <- t(G) %*% covariance_matrix %*% G
-    v <- mean(A) ^ 2 * as.vector(v) - N # mean(A) iis almost surely wrong, and the - N is based on eq (4) in Efford et al 2013.
+    v <- mean(A) ^ 2 * as.vector(v) - N # mean(A) is almost surely wrong, and the - N is based on eq (4) in Efford et al 2013.
     
     # Assume normal distribution of N 
     se <- sqrt(v)  
