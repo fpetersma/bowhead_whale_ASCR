@@ -102,10 +102,11 @@ llkSurface <- function(par_fix, par_flex, dat, USE_BEARINGS) {
       })
       return(flex2)
     })
+    colnames(llk_values) <- round(par_flex[[1]], 4)
+    rownames(llk_values) <- round(par_flex[[2]], 4)
   } else {
     stop("number of columns of par_flex has to be either 1 or 2!")
   }
-  
   
   return(llk_values)
 

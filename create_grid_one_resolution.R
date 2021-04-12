@@ -40,7 +40,7 @@ lat <- c(68.5, 72) # Hopefully enough
 # Extract bathymetry data from NOAA
 bathy <- getNOAA.bathy(lon1 = lon[1], lon2 = lon[2], 
                        lat1 = lat[1], lat2 = lat[2],
-                       resolution = 3, keep = TRUE)
+                       resolution = 2, keep = TRUE)
 raster_longlat <- as.raster(bathy)
 
 # Proceed to converting to matrices
@@ -141,5 +141,5 @@ gridExtra::grid.arrange(p_depth, p_distance_coast, p_distance_DASAR, p_area,
 
 # Write .csv file =========================================================  ##
 write.csv(x = mesh_adaptive,
-          file = "Data/grid_adaptive_levels=1_maxD2C=100k_maxD2A=100k_area=25966.92_n=2529.csv",
+          file = "Data/grid_adaptive_levels=1_maxD2C=200k_maxD2A=100k_area=25966.92_n=2529.csv",
           row.names = FALSE)

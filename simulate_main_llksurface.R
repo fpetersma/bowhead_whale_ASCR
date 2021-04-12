@@ -75,14 +75,14 @@ par_dens <- c("(Intercept)" = -1.5)
 
 if (det_function == "janoschek") {
   # Detection function parameters
-  par_det <- c(U = 0.8, # should be in (0, 1]
-               B = 1.5, # should be in (0, Inf)
-               Q = 2.8) # should be in (1, Inf)
+  par_det <- c(U = 0.8,  # should be in (0, 1]
+               B = 1.5,  # should be in (0, Inf)
+               Q = 2.8)  # should be in (1, Inf)
 } else if (det_function == "logit" | det_function == "probit") {
   # Detection function parameters
-  par_det <- c(U = 0.7, # should be in (0, 1]
-               B = 20, # should be in (0, Inf)
-               Q = 5) # should be in (0, Inf)
+  par_det <- c(U = 0.7,  # should be in (0, 1]
+               B = 20,   # should be in (0, Inf)
+               Q = 5)    # should be in (0, Inf)
 } else if (det_function == "simple") {
   # Detection function parameters
   par_det <- c(g0 = 0.7)
@@ -217,12 +217,14 @@ par_dens_start <- c("(Intercept)" = -1.5)
 # par_dens_start <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
 
 # Start values for received level
-par_rl_start <- c(#beta_r = log(15),
-                  sd_r = log(3))
+par_rl_start <- c(beta_r = log(15),
+                  sd_r = log(3)
+                  )
 
 # Start values for source level
-par_sl_start <- c(#mu_s = log(140), # identity
-                  sd_s = log(5)) # log
+par_sl_start <- c(mu_s = log(140), # identity
+                  sd_s = log(5)
+                  ) # log
 
 # Start values for bearing
 par_bear_start <- c(kappa = log(5000)) # log
@@ -240,19 +242,19 @@ par_flex <- list(mu_s = log(136:144),
 
 ######################## Get likelihood surfaces ##########################
 a <- llkSurface(par_fix = par_fix, 
-           par_flex = par_flex, 
-           dat = dat, 
-           USE_BEARINGS = TRUE)
+                 par_flex = par_flex, 
+                 dat = dat, 
+                 USE_BEARINGS = TRUE)
 
 # volcano is a numeric matrix that ships with R
-fig_a <- plot_ly(z = ~ a)
+fig_a <- plot_ly(z = ~ a, y = ~ colnames(a), x = ~ rownames(a))
 fig_a <- fig_a %>% add_surface()
 
 fig_a
 
 # More zoomed in
 par_flex <- list(mu_s = log(seq(from = 139, to = 141, by = 0.2)), 
-                 beta_r = log(seq(from = 14.5, to = 15.5, by = 0.1)))
+                 beta_r = log(seq(from = 14.4, to = 15.6, by = 0.1)))
 
 b <- llkSurface(par_fix = par_fix, 
                 par_flex = par_flex, 
@@ -260,7 +262,87 @@ b <- llkSurface(par_fix = par_fix,
                 USE_BEARINGS = TRUE)
 
 # volcano is a numeric matrix that ships with R
-fig_b <- plot_ly(z = ~ b)
+fig_b <- plot_ly(z = ~ b, y = ~ colnames(b), x = ~ rownames(b))
 fig_b <- fig_b %>% add_surface()
 
 fig_b
+
+# More 
+# Start values for received level
+par_rl_start <- c(# beta_r = log(15),
+                  # sd_r = log(3)
+)
+
+# Start values for source level
+par_sl_start <- c(mu_s = log(140), # identity
+                  sd_s = log(5)
+) # log
+
+# Start values for bearing
+par_bear_start <- c(kappa = log(5000)) # log
+
+
+par_fix <- list(par_det = par_det_start,
+                par_bear = par_bear_start,
+                par_rl = par_rl_start,
+                par_sl = par_sl_start,
+                par_dens = par_dens_start)
+
+par_flex <- list(sd_r = log(seq(from = 2.5, to = 3.5, by = 0.1)), 
+                 beta_r = log(c(13, 13.5, 14, 14.5, 15, 15.5, 16, 16.5, 17)))
+
+c <- llkSurface(par_fix = par_fix, 
+                par_flex = par_flex, 
+                dat = dat, 
+                USE_BEARINGS = TRUE)
+
+fig_c <- plot_ly(z = ~ c, y = ~ colnames(c), x = ~ rownames(c))
+fig_c <- fig_c %>% add_surface()
+
+fig_c # problem seems to be mainly in beta_r, which has low identifiability (increasig grid might solve this?)
+
+
+# NUMBAH 4
+
+par_det_start <- c(#g0 = log(0.7 / (1 - 0.7))
+  )
+
+# Start values for density function
+par_dens_start <- c("(Intercept)" = -1.5)
+# par_dens_start <- c("(Intercept)" = -2.5, "distance_to_coast" = 3, "distance_to_coast2" = -3)
+# par_dens_start <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
+
+# Start values for received level
+par_rl_start <- c(beta_r = log(15),
+                  sd_r = log(3)
+)
+
+# Start values for source level
+par_sl_start <- c(#mu_s = log(140), # identity
+                  sd_s = log(5)
+) # log
+
+# Start values for bearing
+par_bear_start <- c(kappa = log(5000)) # log
+
+
+par_fix <- list(par_det = par_det_start,
+                par_bear = par_bear_start,
+                par_rl = par_rl_start,
+                par_sl = par_sl_start,
+                par_dens = par_dens_start)
+
+par_flex <- list(g0 = log(seq(from=0.6, to=0.8, by=0.02) / (1 - seq(from=0.6, to=0.8, by=0.02))), 
+                 mu_s = log(seq(from = 139, to = 141, by = 0.2)))
+
+d <- llkSurface(par_fix = par_fix, 
+                par_flex = par_flex, 
+                dat = dat, 
+                USE_BEARINGS = TRUE)
+
+fig_d <- plot_ly(z = ~ d, 
+                 y = ~ exp(as.numeric(colnames(d))) / (1 + exp(as.numeric(colnames(d)))), 
+                 x = ~  exp(as.numeric(rownames(d))))
+fig_d <- fig_d %>% add_surface()
+
+fig_d

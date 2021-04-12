@@ -137,6 +137,8 @@ received_levels_hist <- dat_sim$received_levels#[index, ]
 
 DASAR <- as.data.frame(read_tsv("Data/DASARs.txt"))
 
+mesh_file <- "Data/grid_adaptive_levels=3_bounds=10k-60k_maxD2C=100k_maxD2A=200k_area=44145.6_n=180+139+146=465.csv"
+
 mesh <- read.csv(mesh_file)
 
 ########################### Create mask ########################################
