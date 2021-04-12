@@ -733,6 +733,15 @@
                                        kappa = kappa,
                                        log = TRUE)
           
+          # mixture version
+          p <- mix_par * dvonmises(x = obs_minus_exp, 
+                                   mu = circular::circular(0, template = "geographics"),
+                                   kappa = kappa1) +
+            (1 - mix_par) * dvonmises(x = obs_minus_exp, 
+                                      mu = circular::circular(0, template = "geographics"),
+                                      kappa = kappa2)
+          log_p <- log(p)
+          
           # Return the sum of the log probabilities
           part_bearings <- Rfast::colsums(t(log_p))
           
@@ -866,6 +875,16 @@
                                        mu = circular::circular(0, template = "geographics"),
                                        kappa = kappa,
                                        log = TRUE)
+          
+          # mixture version
+          p <- mix_par * dvonmises(x = obs_minus_exp, 
+                                   mu = circular::circular(0, template = "geographics"),
+                                   kappa = kappa1) +
+            (1 - mix_par) * dvonmises(x = obs_minus_exp, 
+                                      mu = circular::circular(0, template = "geographics"),
+                                      kappa = kappa2)
+          log_p <- log(p)
+          
           # Return the sum of the log probabilities
           part_bearings <- colSums(t(log_p))
           
@@ -1062,10 +1081,19 @@
         obs_minus_exp <- circular(matrix(x, nrow = n_grid, ncol = n_det, byrow = TRUE) - 
                                     grid_bearings, template = "geographics")
         obs_minus_exp <- obs_minus_exp[, index] ## I THINK THIS IS NOT CORRECT
-        log_p <- dvonmises(x = obs_minus_exp, 
+        log_p <- dvonmises(x = obs_minus_exp,
                            mu = circular::circular(0, template = "geographics"),
                            kappa = kappa,
                            log = TRUE)
+        
+        # mixture version
+        p <- mix_par * dvonmises(x = obs_minus_exp, 
+                                 mu = circular::circular(0, template = "geographics"),
+                                 kappa = kappa1) +
+          (1 - mix_par) * dvonmises(x = obs_minus_exp, 
+                                    mu = circular::circular(0, template = "geographics"),
+                                    kappa = kappa2)
+        log_p <- log(p)
         
         # Return the sum of the log probabilities
         return(colSums(t(log_p)))
