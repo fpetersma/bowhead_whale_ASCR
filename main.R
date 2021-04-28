@@ -31,9 +31,10 @@ source("Scripts/bowhead whales/llkParallelSmooth.R")
 seed <- 31082010
 sample_size <- 500
 min_no_detections <- 2
-SINGLE_SL <- FALSE
+SINGLE_SL <- TRUE
 WITH_NOISE <- FALSE
 trunc_level <- 96
+BEAR_MIXTURE <- TRUE
 
 ############################ Load real data ####################################
 
@@ -44,7 +45,7 @@ noise_call <- read.csv("Data/noise_31-08-2010_all.csv") # 99% quantile of noise 
 
 DASAR <- as.data.frame(read_tsv("Data/DASARs.txt"))
 
-mesh_file <- "Data/grid_adaptive_levels=3_bounds=10k-60k_maxD2C=100k_maxD2A=200k_area=44145.6_n=180+139+146=465.csv"
+mesh_file <- "Data/grid_adaptive_levels=1_maxD2C=100k_maxD2A=100k_area=21785.36_n=1163.csv"
 
 # Create fake random sample of noise based on noise_call
 noise_random <- noise_call + rnorm(length(noise_call), 2, 1)
@@ -127,7 +128,7 @@ if (WITH_NOISE) {
 set.seed(seed)
 
 # Detection history
-index <- sample(1:nrow(detections), sample_size)
+# index <- sample(1:nrow(detections), sample_size)
 det_hist <- detections#[index, ]
 bearings_hist <- bearings#[index, ]
 received_levels_hist <- received_levels#[index, ]
@@ -156,7 +157,7 @@ dat <- list(det_hist = as.matrix(detections),
             received_levels = as.matrix(received_levels_hist),
             noise_call = as.matrix(noise_call),
             noise_random = as.matrix(noise_random),
-            source_levels = seq(from = 120 + (A_s / 2), to = 180, by = A_s),
+            source_levels = seq(from = 150 + (A_s / 2), to = 200, by = A_s),
             A_x = A_x,
             A_s = A_s,
             f_density = f_density,
@@ -165,6 +166,7 @@ dat <- list(det_hist = as.matrix(detections),
             min_no_detections = min_no_detections,
             SINGLE_SL = SINGLE_SL,
             WITH_NOISE = WITH_NOISE,
+            BEAR_MIXTURE = BEAR_MIXTURE,
             trunc_level = trunc_level)
 
 
@@ -186,7 +188,7 @@ if(det_function == "janoschek") {
 }
 
 # Start values for density function
-par_dens_start <- c("(Intercept)" = -2)
+par_dens_start <- c("(Intercept)" = -3)
 # par_dens_start <- c("(Intercept)" = -3, "distance_to_coast" = 2, "distance_to_coast2" = -2.5)
 # par_dens_start <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
 
@@ -199,7 +201,12 @@ par_sl_start <- c(mu_s = log(154), # identity
                   sd_s = log(8)) # log
 
 # Start values for bearing
-par_bear_start <- c(kappa = log(100)) # log
+if (BEAR_MIXTURE) {
+  par_bear_start <- c(kappa = log(5), #log
+                      mix_par = log(0.1 / (1 - 0.1))) # logit
+} else {
+  par_bear_start <- c(kappa = log(5)) #log
+} 
 
 par_start <- list(par_det = par_det_start,
                   par_bear = par_bear_start,
@@ -207,14 +214,18 @@ par_start <- list(par_det = par_det_start,
                   par_sl = par_sl_start,
                   par_dens = par_dens_start)
 
+
+
 ######################## Run bw_scr() on subset data ##########################
 method = "L-BFGS-B"
-maxit = 1
+maxit = 100
 TRACE = 1
 LSE = TRUE
+
 
 system.time({
   bw <- bwASCR(dat = dat, par = par_start, method = method, maxit = maxit,
                TRACE = TRACE, LSE = LSE)
 })
+
 

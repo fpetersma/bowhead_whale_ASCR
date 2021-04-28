@@ -59,6 +59,7 @@
   trunc_level <- dat$trunc_level
   WITH_NOISE <- dat$WITH_NOISE
   SINGLE_SL <- dat$SINGLE_SL
+  BEAR_MIXTURE <- dat$BEAR_MIXTURE
   
   if (TRACE) {
     print(par)
@@ -130,6 +131,12 @@
   
   if (USE_BEARINGS) {
     kappa <- exp(par["kappa"]) # log links
+    if (BEAR_MIXTURE) {
+      mix_par <- exp(par["mix_par"]) / (1 + exp(par["mix_par"])) # percentage von mises with kappa_low 
+      kappa_high <- kappa 
+      kappa_low <- 0.5
+      rm(kappa)
+    }
   } 
   
   if (USE_RL) {
@@ -727,20 +734,21 @@
         if (USE_BEARINGS) {
           obs_minus_exp <- circular::circular(matrix(bearings, nrow = n_grid, ncol = length(bearings), byrow = TRUE) -
                                                 grid_bearings[, index], template = "geographics")
-          
-          log_p <- circular::dvonmises(x = obs_minus_exp,
-                                       mu = circular::circular(0, template = "geographics"),
-                                       kappa = kappa,
-                                       log = TRUE)
-          
-          # mixture version
-          p <- mix_par * dvonmises(x = obs_minus_exp, 
-                                   mu = circular::circular(0, template = "geographics"),
-                                   kappa = kappa1) +
-            (1 - mix_par) * dvonmises(x = obs_minus_exp, 
-                                      mu = circular::circular(0, template = "geographics"),
-                                      kappa = kappa2)
-          log_p <- log(p)
+          # find probabilities
+          if (!BEAR_MIXTURE) {
+            log_p <- circular::dvonmises(x = obs_minus_exp,
+                                         mu = circular::circular(0, template = "geographics"),
+                                         kappa = kappa,
+                                         log = TRUE)
+          } else {  # mixture version
+            p <- mix_par * circular::dvonmises(x = obs_minus_exp, 
+                                               mu = circular::circular(0, template = "geographics"),
+                                               kappa = kappa_low) +
+              (1 - mix_par) * circular::dvonmises(x = obs_minus_exp, 
+                                                  mu = circular::circular(0, template = "geographics"),
+                                                  kappa = kappa_high)
+            log_p <- log(p)
+          }
           
           # Return the sum of the log probabilities
           part_bearings <- Rfast::colsums(t(log_p))
@@ -871,19 +879,21 @@
           obs_minus_exp <- circular::circular(matrix(bearings, nrow = n_grid, ncol = length(bearings), byrow = TRUE) - 
                                                 grid_bearings[, index], template = "geographics")
           
-          log_p <- circular::dvonmises(x = obs_minus_exp, 
-                                       mu = circular::circular(0, template = "geographics"),
-                                       kappa = kappa,
-                                       log = TRUE)
-          
-          # mixture version
-          p <- mix_par * dvonmises(x = obs_minus_exp, 
-                                   mu = circular::circular(0, template = "geographics"),
-                                   kappa = kappa1) +
-            (1 - mix_par) * dvonmises(x = obs_minus_exp, 
-                                      mu = circular::circular(0, template = "geographics"),
-                                      kappa = kappa2)
-          log_p <- log(p)
+          # find probabilities
+          if (!BEAR_MIXTURE) {
+            log_p <- circular::dvonmises(x = obs_minus_exp,
+                                         mu = circular::circular(0, template = "geographics"),
+                                         kappa = kappa,
+                                         log = TRUE)
+          } else {  # mixture version
+            p <- mix_par * circular::dvonmises(x = obs_minus_exp, 
+                                               mu = circular::circular(0, template = "geographics"),
+                                               kappa = kappa_low) +
+              (1 - mix_par) * circular::dvonmises(x = obs_minus_exp, 
+                                                  mu = circular::circular(0, template = "geographics"),
+                                                  kappa = kappa_high)
+            log_p <- log(p)
+          }
           
           # Return the sum of the log probabilities
           part_bearings <- colSums(t(log_p))
@@ -1081,19 +1091,22 @@
         obs_minus_exp <- circular(matrix(x, nrow = n_grid, ncol = n_det, byrow = TRUE) - 
                                     grid_bearings, template = "geographics")
         obs_minus_exp <- obs_minus_exp[, index] ## I THINK THIS IS NOT CORRECT
-        log_p <- dvonmises(x = obs_minus_exp,
-                           mu = circular::circular(0, template = "geographics"),
-                           kappa = kappa,
-                           log = TRUE)
         
-        # mixture version
-        p <- mix_par * dvonmises(x = obs_minus_exp, 
-                                 mu = circular::circular(0, template = "geographics"),
-                                 kappa = kappa1) +
-          (1 - mix_par) * dvonmises(x = obs_minus_exp, 
-                                    mu = circular::circular(0, template = "geographics"),
-                                    kappa = kappa2)
-        log_p <- log(p)
+        # find probabilities
+        if (!BEAR_MIXTURE) {
+          log_p <- circular::dvonmises(x = obs_minus_exp,
+                                       mu = circular::circular(0, template = "geographics"),
+                                       kappa = kappa,
+                                       log = TRUE)
+        } else {  # mixture version
+          p <- mix_par * circular::dvonmises(x = obs_minus_exp, 
+                                             mu = circular::circular(0, template = "geographics"),
+                                             kappa = kappa_low) +
+            (1 - mix_par) * circular::dvonmises(x = obs_minus_exp, 
+                                                mu = circular::circular(0, template = "geographics"),
+                                                kappa = kappa_high)
+          log_p <- log(p)
+        }
         
         # Return the sum of the log probabilities
         return(colSums(t(log_p)))

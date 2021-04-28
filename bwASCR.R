@@ -73,7 +73,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   if (!COMPLETE_DATA) {stop("'dat' argument is incomplete!")}
   
   # Use normal MLE standard error?
-  USE_MLE_SD <- TRUE
+  USE_MLE_SD <- FALSE
   
   ##############################################################################
   ########################## Start the fitting #################################
@@ -90,6 +90,9 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   
   dat[["USE_BEARINGS"]] <- USE_BEARINGS
   dat[["USE_RL"]] <- USE_RL
+  
+  # Set mixture for bearings to false if bearings are not used to avoid NULL comparison in if statements
+  if (!USE_BEARINGS) {dat$BEAR_MIXTURE <- FALSE}
   
   # Check which detection function is to be used, and make sure detection rate
   # or probability at distance = 0 is correctly named. 
@@ -201,29 +204,61 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   }
   
   # define bounds for optim()
-  if (dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS) {
+  if (dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & !BEAR_MIXTURE) {
     lower_bounds <- c(g0 = -10, 
-                      kappa = log(2),
+                      kappa = log(0.5),
                       beta_r = log(1), 
                       sd_r = log(0.01),
                       mu_s = log(50), 
                       rep(-Inf, 100)) # this gives 0 on log and logit link
     upper_bounds <- c(g0 = 10, 
-                      kappa = log(100),
+                      kappa = log(10000),
                       beta_r = log(50), 
                       sd_r = log(50),
                       mu_s  = log(300), 
                       rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
-  } else if (!dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS) {
+  } else if (!dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & !BEAR_MIXTURE) {
     lower_bounds <- c(g0 = -10, 
-                     kappa = log(2),
+                     kappa = log(0.5),
                      beta_r = log(1), 
                      sd_r = log(0.01),
                      mu_s = log(50), 
                      sd_s = log(0.01),
                      rep(-Inf, 100)) # this gives 0 on log and logit link
     upper_bounds <- c(g0 = 10, 
-                      kappa = log(100),
+                      kappa = log(10000),
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      sd_s = log(50),
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  } else if (dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & BEAR_MIXTURE) {
+    lower_bounds <- c(g0 = -10, 
+                      kappa = log(0.5),
+                      mix_par = -10,
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 10, 
+                      kappa = log(10000),
+                      mix_par = 10,
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  } else if (!dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & BEAR_MIXTURE) {
+    lower_bounds <- c(g0 = -10, 
+                      kappa = log(0.5),
+                      mix_par = -10,
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      sd_s = log(0.01),
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 10, 
+                      kappa = log(10000),
+                      mix_par = 10,
                       beta_r = log(50), 
                       sd_r = log(50),
                       mu_s  = log(300), 
