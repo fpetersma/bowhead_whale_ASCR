@@ -130,12 +130,15 @@
   } else {stop("A PROBLEM!")}
   
   if (USE_BEARINGS) {
-    kappa <- exp(par["kappa"]) # log links
+    # kappa <- exp(par["kappa"]) # log links
     if (BEAR_MIXTURE) {
       mix_par <- exp(par["mix_par"]) / (1 + exp(par["mix_par"])) # percentage von mises with kappa_low 
-      kappa_high <- kappa 
-      kappa_low <- 0.5
-      rm(kappa)
+      kappa_low <- exp(par["kappa_low"])
+      kappa_high <- exp(par["kappa_high"])
+      # kappa_low <- 0.5
+      # rm(kappa)
+    } else {
+      kappa <- exp(par["kappa "])
     }
   } 
   

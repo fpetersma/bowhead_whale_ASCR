@@ -202,7 +202,8 @@ par_sl_start <- c(mu_s = log(154), # identity
 
 # Start values for bearing
 if (BEAR_MIXTURE) {
-  par_bear_start <- c(kappa = log(5), #log
+  par_bear_start <- c(kappa_low = log(1), #log
+                      kappa_high = log(10),
                       mix_par = log(0.1 / (1 - 0.1))) # logit
 } else {
   par_bear_start <- c(kappa = log(5)) #log
