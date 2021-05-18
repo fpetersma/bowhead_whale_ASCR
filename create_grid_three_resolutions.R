@@ -42,7 +42,7 @@ lat <- c(68.5, 72) # Hopefully enough
 # Extract bathymetry data from NOAA
 bathy <- getNOAA.bathy(lon1 = lon[1], lon2 = lon[2], 
                        lat1 = lat[1], lat2 = lat[2],
-                       resolution = 2, keep = TRUE) # res = 1/30
+                       resolution = 1, keep = TRUE) # res = 1/30
 raster_longlat <- as.raster(bathy)
 
 # Proceed to converting to matrices
@@ -125,7 +125,7 @@ lat <- c(68.5, 72) # Hopefully enough
 # Extract bathymetry data from NOAA
 bathy <- getNOAA.bathy(lon1 = lon[1], lon2 = lon[2], 
                        lat1 = lat[1], lat2 = lat[2],
-                       resolution = 8, keep = TRUE)
+                       resolution = 4, keep = TRUE)
 raster_longlat <- as.raster(bathy)
 
 # Proceed to converting to matrices
@@ -208,7 +208,7 @@ lat <- c(68.5, 72) # Hopefully enough
 # Extract bathymetry data from NOAA
 bathy <- getNOAA.bathy(lon1 = lon[1], lon2 = lon[2], 
                        lat1 = lat[1], lat2 = lat[2],
-                       resolution = 14, keep = TRUE)
+                       resolution = 10, keep = TRUE)
 raster_longlat <- as.raster(bathy)
 
 # Proceed to converting to matrices
@@ -317,7 +317,7 @@ gridExtra::grid.arrange(p_depth, p_distance_coast, p_distance_DASAR, p_area,
                         ncol = 1, nrow = 4, 
                         top = "The adaptive grid with four different colourings (depth, distance_to_coast, distance_to_DASAR, and area)")
 
-## Write .csv file =========================================================  ##
-# write.csv(x = mesh_adaptive, 
-#           file = "Data/JABES paper/grid_adaptive_levels=3_maxD2C=100k_maxD2A=200k_area=44145.6.csv", 
-#           row.names = FALSE)
+# Write .csv file =========================================================  ##
+write.csv(x = mesh_adaptive,
+          file = "Data/grid_adaptive_levels=3_maxD2C=100k_maxD2A=200k_area=42411.37_n=1573.csv",
+          row.names = FALSE)

@@ -17,6 +17,10 @@ library(circular)
 library(tidyverse)
 library(reshape2)
 
+low_bound <- 10000
+hi_bound <- 60000
+coast_bound <- Inf
+
 ##  Create the hi-res map ==================================================  ##
 
 # Load the DASAR locations
@@ -37,7 +41,7 @@ lat <- c(68.5, 72) # Hopefully enough
 # Extract bathymetry data from NOAA
 bathy <- getNOAA.bathy(lon1 = lon[1], lon2 = lon[2], 
                        lat1 = lat[1], lat2 = lat[2],
-                       resolution = 3, keep = TRUE) # res = 1/30
+                       resolution = 1, keep = TRUE) # res = 1/30
 raster_longlat <- as.raster(bathy)
 
 # Proceed to converting to matrices
@@ -76,14 +80,14 @@ distance_to_coast <- Rfast::rowMins(all_distances_to_coast, value = TRUE)
 
 melt_longlat <- cbind(melt_longlat, distance_to_coast = distance_to_coast)
 
-mesh <- subset(melt_longlat, subset = to_nearest_DASAR <= 20000 & 
-                 distance_to_coast <= 100000)
+mesh <- subset(melt_longlat, subset = to_nearest_DASAR <= low_bound & 
+                 distance_to_coast <= coast_bound)
 
 # mesh_raster <- rasterFromXYZ(mesh[, 1:3], 
 #                              crs = "+proj=longlat +datum=WGS84 +no_defs",
 #                              res = c(3/60, 3/60))
 
-mesh$circle <- ifelse(test = mesh$to_nearest_DASAR <= 20000,
+mesh$circle <- ifelse(test = mesh$to_nearest_DASAR <= low_bound,
                       yes = 1, no = 2)
 
 sum(mesh$circle == 1)
@@ -96,8 +100,7 @@ mesh_1 <- mesh[mesh$circle == 1, ]
 # way, we need an individual area measurement for every grid cells we integrate 
 # over. 
 raster_1 <- rasterFromXYZ(mesh_1[, 1:3], 
-                          crs = "+proj=longlat +datum=WGS84 +no_defs",
-                          res = c(3/60, 3/60))
+                          crs = "+proj=longlat +datum=WGS84 +no_defs")
 
 # Here we recreate the melted data we had before. 
 df_1 <- na.omit(cbind(coordinates(raster_1), 
@@ -124,7 +127,7 @@ lat <- c(68.5, 72) # Hopefully enough
 # Extract bathymetry data from NOAA
 bathy <- getNOAA.bathy(lon1 = lon[1], lon2 = lon[2], 
                        lat1 = lat[1], lat2 = lat[2],
-                       resolution = 14, keep = TRUE)
+                       resolution = 4, keep = TRUE)
 raster_longlat <- as.raster(bathy)
 
 # Proceed to converting to matrices
@@ -163,14 +166,14 @@ distance_to_coast <- Rfast::rowMins(all_distances_to_coast, value = TRUE)
 
 melt_longlat <- cbind(melt_longlat, distance_to_coast = distance_to_coast)
 
-mesh <- subset(melt_longlat, subset = to_nearest_DASAR <= 200000 & 
-                 distance_to_coast <= 100000)
+mesh <- subset(melt_longlat, subset = to_nearest_DASAR <= hi_bound & 
+                 distance_to_coast <= coast_bound)
 
 # mesh_raster <- rasterFromXYZ(mesh[, 1:3], 
 #                              crs = "+proj=longlat +datum=WGS84 +no_defs",
 #                              res = c(15/60, 15/60))
 
-mesh$circle <- ifelse(test = mesh$to_nearest_DASAR <= 20000,
+mesh$circle <- ifelse(test = mesh$to_nearest_DASAR <= low_bound,
                       yes = 1, no = 2)
 
 sum(mesh$circle == 2)
@@ -183,8 +186,7 @@ mesh_2 <- mesh[mesh$circle == 2, ]
 # way, we need an individual area measurement for every grid cells we integrate 
 # over. 
 raster_2 <- rasterFromXYZ(mesh_2[, 1:3], 
-                          crs = "+proj=longlat +datum=WGS84 +no_defs",
-                          res = c(14/60, 14/60))
+                          crs = "+proj=longlat +datum=WGS84 +no_defs")
 
 # Here we recreate the melted data we had before. 
 df_2 <- na.omit(cbind(coordinates(raster_2), 
@@ -236,7 +238,7 @@ gridExtra::grid.arrange(p_depth, p_distance_coast, p_distance_DASAR, p_area,
                         ncol = 1, nrow = 4, 
                         top = "The adaptive grid with four different colourings (depth, distance_to_coast, distance_to_DASAR, and area)")
 
-## Write .csv file =========================================================  ##
-# write.csv(x = mesh_adaptive, 
-#           file = "Data/JABES paper/grid_adaptive_levels=2_maxD2C=100k_maxD2A=200k_area=44289.6.csv", 
-#           row.names = FALSE)
+# Write .csv file =========================================================  ##
+write.csv(x = mesh_adaptive,
+          file = "Data/grid_adaptive_levels=2_bounds=10k_maxD2C=Inf_maxD2A=60k_area=11461.8_n=737+567=1304.csv",
+          row.names = FALSE)
