@@ -39,7 +39,7 @@
 #' @export
 bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                    LSE = TRUE) {
-
+  
   # REMEMBER TO UPDATE CERTAIN BITS DEPENDING ON WHICH llk...R SCRIPT WILL BE USED
   # LINES TO UPDATE: 80 (which pars to include), 159 (which confidence bounds to use),
   #                  146 (which llk....R script to use).
@@ -93,6 +93,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   
   # Set mixture for bearings to false if bearings are not used to avoid NULL comparison in if statements
   if (!USE_BEARINGS) {dat$BEAR_MIXTURE <- FALSE}
+  BEAR_MIXTURE <- dat$BEAR_MIXTURE
   
   # Check which detection function is to be used, and make sure detection rate
   # or probability at distance = 0 is correctly named. 
@@ -138,12 +139,13 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   }
   dat["CONSTANT_DENSITY"] <- CONSTANT_DENSITY
   
-  # Not sure if scaling is necessary
+  # Not sure if scaling is necessary ===========================================
   cov_density_scaled <- subset(dat$cov_density, select = -area)
-  cov_density_scaled[, -c(1, 2)] <- scale(subset(cov_density_scaled, 
-                                                 select = -c(long, lat)))
+  # cov_density_scaled[, -c(1, 2)] <- scale(subset(cov_density_scaled, 
+  #                                                select = -c(long, lat)))
+  # ============================================================================
   
-  # Turn the bearings to radians, as the llk calculation uses radians 
+  # Turn the bearings to radians, as the log likelihood function uses radians 
   if (USE_BEARINGS) {
     bearings_deg <- circular(dat$bearings,
                              units = "degrees",
@@ -203,10 +205,12 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                 col.names = names(par))
   }
   
-  # define bounds for optim()
+  # ============================================================================
+  # Define bounds for optim()
+  # ============================================================================
   if (dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & !BEAR_MIXTURE) {
     lower_bounds <- c(g0 = -10, 
-                      kappa = log(0.1),
+                      kappa = log(0), # -Inf
                       beta_r = log(1), 
                       sd_r = log(0.01),
                       mu_s = log(50), 
@@ -219,12 +223,12 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                       rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
   } else if (!dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & !BEAR_MIXTURE) {
     lower_bounds <- c(g0 = -10, 
-                     kappa = log(0.1),
-                     beta_r = log(1), 
-                     sd_r = log(0.01),
-                     mu_s = log(50), 
-                     sd_s = log(0.01),
-                     rep(-Inf, 100)) # this gives 0 on log and logit link
+                      kappa = log(0), # -Inf
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      sd_s = log(0.01),
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
     upper_bounds <- c(g0 = 10, 
                       kappa = log(10000),
                       beta_r = log(50), 
@@ -234,8 +238,8 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                       rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
   } else if (dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & BEAR_MIXTURE) {
     lower_bounds <- c(g0 = -10, 
-                      kappa_low = log(0.1),
-                      kappa_high = log(0.1),
+                      kappa_low = log(0), # -Inf
+                      kappa_high = log(0), # -Inf
                       mix_par = -10,
                       beta_r = log(1), 
                       sd_r = log(0.01),
@@ -251,8 +255,8 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                       rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
   } else if (!dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & BEAR_MIXTURE) {
     lower_bounds <- c(g0 = -10, 
-                      kappa_low = log(0.1),
-                      kappa_high = log(0.1),
+                      kappa_low = log(0), # -Inf
+                      kappa_high = log(0), # -Inf
                       mix_par = -10,
                       beta_r = log(1), 
                       sd_r = log(0.01),
@@ -293,7 +297,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                       sd_s = log(50),
                       rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
   }
-
+  
   
   ######################## Fit using optim() ###################################
   
@@ -305,9 +309,9 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                     hessian = USE_MLE_SD,
                     control = list(maxit = maxit, 
                                    fnscale = -1, 
-                                   trace = TRACE, 
-                                   REPORT = 1, 
-                                   factr = 1e7),
+                                   trace = TRACE,
+                                   factr = 1e10, # The convergence factor (lower is more precise). defaults to 1e7, which is a tolerance of roughly 1e-8
+                                   REPORT = 1),
                     lower = lower_bounds, 
                     upper = upper_bounds,
                     dat = dat)
@@ -410,7 +414,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   
   if (USE_MLE_SD) {
     N <- .totalN(D = D$density, A = dat$A_x$area, n = n,
-                  covariance_matrix = covariance_matrix, design = design)
+                 covariance_matrix = covariance_matrix, design = design)
   } else {
     N <- c(estimate = sum(dat$A_x$area * D$density))
   }
