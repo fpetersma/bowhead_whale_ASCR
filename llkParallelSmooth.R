@@ -35,7 +35,7 @@
   library(raster)
   
   # Define very small error to be added to values
-  cores <- 6
+  cores <- 20
   error <- 0
   smooth <- "none" # other options are "loess" and "gam"
   neg_inf <- -1e16
@@ -134,7 +134,7 @@
     if (BEAR_MIXTURE) {
       mix_par <- exp(par["mix_par"]) / (1 + exp(par["mix_par"])) # percentage von mises with kappa_low 
       kappa_low <- exp(par["kappa_low"])
-      kappa_high <- exp(par["kappa_high"])
+      kappa_high <- exp(par["kappa_high"]) + kappa_low # add kappa low to avoid nonidentifiability
       # kappa_low <- 0.5
       # rm(kappa)
     } else {
@@ -227,10 +227,10 @@
             if (det_function == "janoschek" | det_function == "logit" | 
                 det_function == "probit" | det_function == "simple") {
               det_probs <- .gSound(level = E_snr, 
-                                 par = par_det,
-                                 type = det_function, 
-                                 sd_r = sd_r,
-                                 trunc_level = trunc_level)
+                                   par = par_det,
+                                   type = det_function, 
+                                   sd_r = sd_r,
+                                   trunc_level = trunc_level)
             } else if (det_function == "half-normal") {
               # Create same distance array for every source level
               distance_array <- array(data = NA,
@@ -286,10 +286,10 @@
             if (det_function == "janoschek" | det_function == "logit" | 
                 det_function == "probit" | det_function == "simple") {
               det_probs <- .gSound(level = E_snr, 
-                                 par = par_det,
-                                 type = det_function, 
-                                 sd_r = sd_r,
-                                 trunc_level = trunc_level)
+                                   par = par_det,
+                                   type = det_function, 
+                                   sd_r = sd_r,
+                                   trunc_level = trunc_level)
             } else if (det_function == "half-normal") {
               # Create same distance array for every source level
               distance_array <- array(data = NA,
@@ -330,6 +330,9 @@
             probs_per_grid_sl <- p. * D_m * probs_sl_m * 
               matrix(A_x$area, nrow = n_sl, ncol = n_grid, byrow = TRUE) # repeat area for every source level
             
+            # Sometimes 0 * Inf occurs, which results in NaN. If so, replace with 0
+            probs_per_grid_sl[is.nan(probs_per_grid_sl)] <- 0
+            
             # Sum over all columns (grid points) 
             probs_per_sl <- Rfast::colsums(t(probs_per_grid_sl))
             
@@ -344,7 +347,7 @@
                               newdata = data.frame(source_levels = source_levels_all))
             } else if (smooth == "none") {pred <- probs_per_sl}
           }
-
+          
           return(sum(pred))
         }) 
         # Stop parallel process
@@ -366,10 +369,10 @@
           if (det_function == "janoschek" | det_function == "logit" | 
               det_function == "probit" | det_function == "simple") {
             det_probs <- .gSound(level = E_rl, 
-                               par = par_det,
-                               type = det_function, 
-                               sd_r = sd_r,
-                               trunc_level = trunc_level)
+                                 par = par_det,
+                                 type = det_function, 
+                                 sd_r = sd_r,
+                                 trunc_level = trunc_level)
           } else if (det_function == "half-normal") {
             # Create same distance array for every source level
             distance_array <- array(data = NA,
@@ -402,10 +405,10 @@
         } else { # ----------------------------------------------- VARIABLE SL
           # Get the expected SNR for all noise samples, grid points and detectors
           E_rl <- array(data = NA,
-                         dim = c(n_sl, n_grid, n_det),
-                         dimnames = list("source_level" = source_levels, 
-                                         "grid_point" = 1:n_grid, 
-                                         "detector" = 1:n_det))
+                        dim = c(n_sl, n_grid, n_det),
+                        dimnames = list("source_level" = source_levels, 
+                                        "grid_point" = 1:n_grid, 
+                                        "detector" = 1:n_det))
           
           for (sl in source_levels) {
             sl_m <- matrix(sl, nrow = n_grid, ncol = n_det)
@@ -421,10 +424,10 @@
           if (det_function == "janoschek" | det_function == "logit" | 
               det_function == "probit" | det_function == "simple") {
             det_probs <- .gSound(level = E_rl, 
-                               par = par_det,
-                               type = det_function, 
-                               sd_r = sd_r,
-                               trunc_level = trunc_level)
+                                 par = par_det,
+                                 type = det_function, 
+                                 sd_r = sd_r,
+                                 trunc_level = trunc_level)
           } else if (det_function == "half-normal") {
             # Create same distance array for every source level
             distance_array <- array(data = NA,
@@ -464,6 +467,9 @@
           # Create a matrix of all products of D, p., f(s) and A_x
           probs_per_grid_sl <- p. * D_m * probs_sl_m * 
             matrix(A_x$area, nrow = n_sl, ncol = n_grid, byrow = TRUE) # repeat area for every source level
+          
+          # Sometimes 0 * Inf occurs, which results in NaN. If so, replace with 0
+          probs_per_grid_sl[is.nan(probs_per_grid_sl)] <- 0
           
           # Sum over all columns (grid points) 
           probs_per_sl <- Rfast::colsums(t(probs_per_grid_sl))
@@ -563,10 +569,10 @@
             if (det_function == "janoschek" | det_function == "logit" |
                 det_function == "probit" | det_function == "simple") {
               det_probs <- .gSound(level = E_snr, 
-                                 par = par_det,
-                                 type = det_function, 
-                                 sd_r = sd_r,
-                                 trunc_level = trunc_level)
+                                   par = par_det,
+                                   type = det_function, 
+                                   sd_r = sd_r,
+                                   trunc_level = trunc_level)
             } else if (det_function == "half-normal") {
               # Create same distance array for every source level
               distance_array <- array(data = NA,
@@ -583,10 +589,10 @@
             if (det_function == "janoschek" | det_function == "logit" |
                 det_function == "probit" | det_function == "simple") {
               det_probs <- .gSound(level = E_rl, 
-                                 par = par_det,
-                                 type = det_function, 
-                                 sd_r = sd_r,
-                                 trunc_level = trunc_level)
+                                   par = par_det,
+                                   type = det_function, 
+                                   sd_r = sd_r,
+                                   trunc_level = trunc_level)
             } else if (det_function == "half-normal") {
               # Create same distance array for every source level
               distance_array <- array(data = NA,
@@ -638,10 +644,10 @@
             if (det_function == "janoschek" | det_function == "logit" | 
                 det_function == "probit" | det_function == "simple") {
               det_probs <- .gSound(level = E_snr, 
-                                 par = par_det,
-                                 type = det_function, 
-                                 sd_r = sd_r,
-                                 trunc_level = trunc_level)
+                                   par = par_det,
+                                   type = det_function, 
+                                   sd_r = sd_r,
+                                   trunc_level = trunc_level)
             } else if (det_function == "half-normal") {
               # Create same distance array for every source level
               distance_array <- array(data = NA,
@@ -672,10 +678,10 @@
             if (det_function == "janoschek" | det_function == "logit" | 
                 det_function == "probit" | det_function == "simple") {
               det_probs <- .gSound(level = E_rl, 
-                                 par = par_det,
-                                 type = det_function, 
-                                 sd_r = sd_r,
-                                 trunc_level = trunc_level)
+                                   par = par_det,
+                                   type = det_function, 
+                                   sd_r = sd_r,
+                                   trunc_level = trunc_level)
             } else if (det_function == "half-normal") {
               # Create same distance array for every source level
               distance_array <- array(data = NA,
@@ -769,7 +775,7 @@
             part_snr_levels <- t(apply(E_snr[, index], c(1), function(snr_exp) {
               
               p <- dnorm(x = snr, mean = snr_exp, sd = sd_r, log = TRUE)
-
+              
               if (det_function == "simple") {
                 # p <- p + log(g0) - log(g0 * (1 - pnorm((runc_level - SNR_exp) / sd_r)))
                 p <- p + log(g0) - log(g0 * (pnorm(trunc_level,
@@ -922,7 +928,7 @@
                                                    mean = snr_exp,
                                                    sd = sd_r, lower.tail = FALSE)))
               }
-            
+              
               return(sum(p))
             }))
             
@@ -949,7 +955,7 @@
           ## Part 3: received levels and source level !THIS IS THE SLOW PART!
           if (USE_RL) {
             part_received_levels <- t(apply(E_rl[, , index], c(1, 2), function(rl_exp) {
-
+              
               p <- dnorm(x = rl, mean = rl_exp, sd = sd_r, log = TRUE)
               if (det_function == "simple") {
                 p <- p + log(g0) - log(g0 * (pnorm(trunc_level,
