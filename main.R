@@ -15,7 +15,7 @@ library("readr")
 library("matrixStats")
 library("truncnorm")
 
-# run the script that sources all functions
+# Run the script that sources all functions
 source("Scripts/bowhead whales/hidden_functions.R")
 source("Scripts/bowhead whales/plotDensity.R")
 source("Scripts/bowhead whales/simulateData.R")
@@ -31,7 +31,7 @@ source("Scripts/bowhead whales/llkParallelSmooth.R")
 seed <- 31082010
 sample_size <- 500
 min_no_detections <- 2
-SINGLE_SL <- TRUE
+SINGLE_SL <- FALSE
 WITH_NOISE <- FALSE
 trunc_level <- 96
 BEAR_MIXTURE <- TRUE
@@ -45,7 +45,7 @@ noise_call <- read.csv("Data/noise_31-08-2010_all.csv") # 99% quantile of noise 
 
 DASAR <- as.data.frame(read_tsv("Data/DASARs.txt"))
 
-mesh_file <- "Data/grid_adaptive_levels=1_maxD2C=100k_maxD2A=100k_area=21785.36_n=1163.csv"
+mesh_file <- "Data/alaska_albers_grid_adaptive_levels=2_inner=10k_outer=50k_maxD2C=Inf_area=8450_n=440.csv"
 
 # Create fake random sample of noise based on noise_call
 noise_random <- noise_call + rnorm(length(noise_call), 2, 1)
@@ -60,6 +60,7 @@ cov_density$depth <- abs(cov_density$depth) # make depth positive
 cov_density[["depth2"]] <-  cov_density$depth ^ 2
 cov_density[["logdepth"]] <- log(cov_density$depth)
 cov_density[["logdepth2"]] <- cov_density$logdepth ^ 2
+cov_density[["distance_to_coast"]] <- cov_density$distance_to_coast / 1000 # from m to km
 cov_density[["distance_to_coast2"]] <- cov_density$distance_to_coast ^ 2
 
 ######################### Create detectors #####################################
@@ -138,9 +139,9 @@ noise_call_hist <- noise_call#[index, ]
 sample_percentage <- nrow(det_hist) / nrow(detections)
 
 # Density formula specification
-f_density <- D ~ 1 #s(dist_to_coast, k = 3, fx = TRUE) # + depth
+# f_density <- D ~ 1 #s(dist_to_coast, k = 3, fx = TRUE) # + depth
 # f_density <- D ~ s(distance_to_coast, k = 5, fx = TRUE)
-# f_density <- D ~ distance_to_coast + distance_to_coast2
+f_density <- D ~ distance_to_coast + distance_to_coast2
 # f_density <- D ~ s(logdepth, k = 3, fx = TRUE) + s(distance_to_coast, k = 3, fx = TRUE)
 # f_density <- D ~ dist_to_coast + dist_to_coast2 + depth + depth2
 
@@ -157,7 +158,7 @@ dat <- list(det_hist = as.matrix(detections),
             received_levels = as.matrix(received_levels_hist),
             noise_call = as.matrix(noise_call),
             noise_random = as.matrix(noise_random),
-            source_levels = seq(from = 150 + (A_s / 2), to = 200, by = A_s),
+            source_levels = seq(from = 140 + (A_s / 2), to = 180, by = A_s),
             A_x = A_x,
             A_s = A_s,
             f_density = f_density,
@@ -188,8 +189,8 @@ if(det_function == "janoschek") {
 }
 
 # Start values for density function
-par_dens_start <- c("(Intercept)" = -3)
-# par_dens_start <- c("(Intercept)" = -3, "distance_to_coast" = 2, "distance_to_coast2" = -2.5)
+# par_dens_start <- c("(Intercept)" = 0)
+par_dens_start <- c("(Intercept)" = 0, "distance_to_coast" = 0, "distance_to_coast2" = 0)
 # par_dens_start <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
 
 # Start values for received level
@@ -202,8 +203,8 @@ par_sl_start <- c(mu_s = log(154), # identity
 
 # Start values for bearing
 if (BEAR_MIXTURE) {
-  par_bear_start <- c(kappa_low = log(1), #log
-                      kappa_high = log(10),
+  par_bear_start <- c(kappa_low = log(5), #log
+                      kappa_high = log(5),
                       mix_par = log(0.1 / (1 - 0.1))) # logit
 } else {
   par_bear_start <- c(kappa = log(5)) #log
@@ -219,7 +220,7 @@ par_start <- list(par_det = par_det_start,
 
 ######################## Run bw_scr() on subset data ##########################
 method = "L-BFGS-B"
-maxit = 100
+maxit = 500
 TRACE = 1
 LSE = TRUE
 
