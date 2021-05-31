@@ -87,7 +87,7 @@ library(circular)
 library(raster)
 
 # Get the mesh
-mesh_file <- "Data/grid_adaptive_levels=2_bounds=10k_maxD2C=Inf_maxD2A=60k_area=11461.8_n=737+567=1304.csv"
+mesh_file <- "Data/alaska_albers_grid_adaptive_levels=2_inner=15k_outer=100k_maxD2C=Inf_maxD2A=100k_area=26318.75_n=1232.csv"
 mesh <- read.csv(mesh_file)
 
 # Get the detectors
@@ -99,11 +99,11 @@ output <- pDetected(mesh = mesh,
                     detectors = detectors, 
                     trunc_level = 96,
                     min_no_detections = 2,
-                    g0 = 0.505,
-                    beta_r = 17.36,
-                    sd_r = 2.36,
-                    mu_s = 158.5,
-                    sd_s = 5.23,
+                    g0 = 0.551,
+                    beta_r = 17.54,
+                    sd_r = 2.71,
+                    mu_s = 162.2,
+                    sd_s = 4.85,
                     SINGLE_SL = FALSE)
 
 probs <- data.frame(det_prob = output, mesh)
@@ -117,10 +117,8 @@ fig <- ggplot(data = probs) +
   coord_equal() + 
   # scale_colour_manual(values = c("darkred", "darkgreen")) +
   geom_point(data = detectors, 
-             mapping = aes(x = long, y = lat, colour = "red"))
+             mapping = aes(x = long, y = lat), colour = "red")
 fig
-
-points(x = detectors$long, y = detectors$lat, col = "red")
 
 #### DOES NOT WORK FROM HERE
 
