@@ -31,6 +31,10 @@ The main scripts of interest are:
 - nll.R
 	
 	Derives the negative log likelihood using ascrRcpp.
+
+- 35_fits_real_data_SL=100-220.Rdata
+	
+	An Rdata file containing the results of 35 ASCR models with varying density specifications.
 	
 
 ### Other scripts
