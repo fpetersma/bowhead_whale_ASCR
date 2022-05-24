@@ -14,7 +14,7 @@ The main scripts of interest are:
 	
 - varying_fits_to_real_data.R
 	
-	This script fits 33 models
+	This script fits 35 models
 	
 - create_grid_Albers.R
 	
