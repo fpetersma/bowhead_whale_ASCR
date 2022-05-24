@@ -5,6 +5,7 @@ Contains all code used to do analyse the case study data, run the simulation stu
 The main scripts of interest are:
 
 - simulate_1000_data_set.R
+
 	Simulates data that can be used for simulation studies. It uses simulate_data_Rcpp.R, and the data was used for the simulation study.
 - ascrRcpp_build_script.R
 	This script creates the package ascrRcpp, which is an custom R package with compiled Rcpp code to fit the ASCR models.
