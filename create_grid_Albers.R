@@ -42,7 +42,7 @@ DASAR <- as.data.frame(readr::read_tsv("Data/DASARs.txt")) %>%
          site == 5, # correct site
          pos != "F") # remove bad detector 
 DASAR$long <- -DASAR$long # remove the Westing from longitude units
-DASAR_coord <- select(DASAR, c(long, lat))  
+DASAR_coord <- dplyr::select(DASAR, c(long, lat))  
 coordinates(DASAR_coord) <- c("long", "lat")
 proj4string(DASAR_coord) <- CRS(wgs84)
 alaska_albers <- spTransform(DASAR_coord, CRS=CRS(aaeac))
@@ -274,7 +274,7 @@ mesh$x_aa <- grid$x
 mesh$y_aa <- grid$y
 
 mesh_filtered <- mesh %>% 
-  filter(depth <= 0, # Remove coordinates on land
+  filter(depth < 0, # Remove coordinates on land
          to_nearest_DASAR <= 50000) # Remove coordinates that are too far away
 
 # ==============================================================================
@@ -319,5 +319,5 @@ points(DASAR_coord$x_aa, DASAR_coord$y_aa, col = "red", pch = 20)
 
 # Write .csv file =========================================================  ##
 write.csv(x = mesh_filtered[, c("long", "lat", "area", "depth", "distance_to_coast", "to_nearest_DASAR")],
-          file = "Data/alaska_albers_grid_adaptive_levels=2_inner=10k_outer=50k_maxD2C=Inf_area=8450_n=440.csv",
+          file = "Data/alaska_albers_grid_adaptive_levels=2_inner=10k_outer=50k_maxD2C=Inf_area=8450_n=438.csv",
           row.names = FALSE)

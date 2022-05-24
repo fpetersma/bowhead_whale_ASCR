@@ -12,9 +12,9 @@ library("truncnorm")
 # sample_size <- 30
 min_no_detections <- 2
 # max_depth <- 150
-trunc_level <- 12
+trunc_level <- 85
 SINGLE_SL <- TRUE
-WITH_NOISE <- TRUE
+WITH_NOISE <- FALSE
 
 source("Scripts/Bowhead Whales/hidden_functions.R")
 source("Scripts/Bowhead Whales/plotDensity.R")
@@ -31,7 +31,7 @@ source("Scripts/Bowhead Whales/llkParallelSmooth.R")
 #   source("Scripts/Bowhead Whales/llkSNR.R")
 # }
 
-mesh_file <- "Data/grid_adaptive_levels=3_bounds=10k-60k_maxD2C=100k_maxD2A=200k_area=44145.6_n=180+139+146=465.csv"
+mesh_file <- "Data/alaska_albers_grid_adaptive_levels=2_inner=10k_outer=50k_maxD2C=Inf_area=8450_n=438.csv"
 
 ## Load a fine grid of the study area
 mesh <- read.csv(mesh_file)
@@ -66,7 +66,7 @@ det_function <- "simple"
 
 ## Set all parameters on the real scale. Only density is on the log scale
 # Parameters for density function
-par_dens <- c("(Intercept)" = -2)
+par_dens <- c("(Intercept)" = -1)
 # par_dens <- c("(Intercept)" = -2.5, "distance_to_coast" = 3, "distance_to_coast2" = -3)
 # par_dens <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
 # par_dens <- c("(Intercept)" = -2.2, "depth" = -1.8, "depth2" = 1.8)
@@ -83,7 +83,7 @@ if (det_function == "janoschek") {
                Q = 5) # should be in (0, Inf)
 } else if (det_function == "simple") {
   # Detection function parameters
-  par_det <- c(g0 = 0.5)
+  par_det <- c(g0 = 0.6)
 }else {
   par_det <- c(g0 = 0.7,
                sigma = 15000)
@@ -96,14 +96,14 @@ par_noise <- c(mu = 65,
                upper = Inf)
 
 # Source level distribution 
-par_sl <- c(mu = 140,
+par_sl <- c(mu = 150,
             sd = 5,
             lower = 0,
             upper = Inf)
 
 # Received level parameters
 par_rl <- c(beta = 15,
-            sigma = 3)
+            sigma = 2)
 
 # Bearing distribution
 par_bear <- c(kappa = 10)
@@ -116,7 +116,7 @@ par <- list(par_dens = par_dens,
             par_bear = par_bear)
 
 # Set seed
-set.seed(seed)
+# set.seed(seed)
 
 ################ Run the simulation using simulateData.R #######################
 dat_sim <- simulateData(par = par, f_density = f_density, cov_density = cov_density,
@@ -129,6 +129,8 @@ dat_sim <- simulateData(par = par, f_density = f_density, cov_density = cov_dens
 # sample_size <- nrow(dat_sim$det_hist) # 30
 # index <- #1:nrow(dat_sim$det_hist) #sample(1:nrow(dat_sim$det_hist), sample_size)
 
+# dat_sim <- sim_data[c("det_hist", "received_levels", "bearings")]
+
 det_hist <- dat_sim$det_hist#[index, ]
 bearings_hist <- dat_sim$bearings#[index, ]
 noise_call <- dat_sim$noise_call#[index, ]
@@ -137,7 +139,7 @@ received_levels_hist <- dat_sim$received_levels#[index, ]
 
 DASAR <- as.data.frame(read_tsv("Data/DASARs.txt"))
 
-mesh_file <- "Data/grid_adaptive_levels=3_bounds=10k-60k_maxD2C=100k_maxD2A=200k_area=44145.6_n=180+139+146=465.csv"
+mesh_file <- "Data/alaska_albers_grid_adaptive_levels=2_inner=10k_outer=50k_maxD2C=Inf_area=8450_n=438.csv"
 
 mesh <- read.csv(mesh_file)
 
@@ -179,7 +181,7 @@ dat <- list(det_hist = det_hist,
             received_levels = received_levels_hist,
             noise_call = noise_call,
             noise_random = noise_random,
-            source_levels = seq(from = 120 + (A_s / 2), to = 180, by = A_s),
+            source_levels = seq(from = 80 + (A_s / 2), to = 180, by = A_s),
             A_x = A_x,
             A_s = A_s,
             f_density = f_density,
@@ -210,23 +212,23 @@ if(det_function == "janoschek") {
 }
 
 # Start values for density function
-par_dens_start <- c("(Intercept)" = -1.5)
+par_dens_start <- c("(Intercept)" = -1)
 # par_dens_start <- c("(Intercept)" = -2.5, "distance_to_coast" = 3, "distance_to_coast2" = -3)
 # par_dens_start <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
 
 # Start values for received level
-par_rl_start <- c(beta_r = log(10),
-                  sd_r = log(3))
+par_rl_start <- c(beta_r = log(15),
+                  sd_r = log(2))
 
 # Start values for source level
-par_sl_start <- c(mu_s = log(135), # identity
+par_sl_start <- c(mu_s = log(150), # identity
                   sd_s = log(5)) # log
 
 # Start values for bearing
 par_bear_start <- c(kappa = log(10)) # log
 
 par_start <- list(par_det = par_det_start,
-                  par_bear = par_bear_start,
+                  # par_bear = par_bear_start,
                   par_rl = par_rl_start,
                   par_sl = par_sl_start,
                   par_dens = par_dens_start)
@@ -234,7 +236,7 @@ par_start <- list(par_det = par_det_start,
 ######################## Run bw_scr() on subset data ##########################
 method = "L-BFGS-B"
 maxit = 100
-TRACE = 0
+TRACE = 1
 LSE = TRUE
 
 system.time({

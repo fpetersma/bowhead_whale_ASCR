@@ -1,10 +1,5 @@
 # Run for test runs ============================================================
-# par <- par_start
-# rm(list = setdiff(ls(), c("dat", "par")))
-# method = "L-BFGS-B"
-# maxit = 100
-# TRACE = TRUE
-# LSE = TRUE
+# par <- par_start; rm(list = setdiff(ls(), c("dat", "par"))); method = "L-BFGS-B"; maxit = 100; TRACE = TRUE; LSE = TRUE;
 # ==============================================================================
 
 #' Fits an acoustic spatial capture recapture model to bowhead whale call data 

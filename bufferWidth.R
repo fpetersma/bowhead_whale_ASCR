@@ -1,12 +1,16 @@
-bufferWidth <- function(p,
-                        trunc_level,
-                        g0, 
-                        beta_r, 
-                        sd_r, 
-                        mu_s, 
-                        sd_s = NULL, 
-                        noise = NULL,
-                        SINGLE_SL = TRUE, 
+## =============================================================================
+## SCRIPT FOR EVALUATION OF THE BUFFER WIDTH
+## =============================================================================
+
+bufferWidth <- function(p,                  # maximum allowed detection prob
+                        trunc_level,        # truncation level for det fun
+                        g0,                 # detection prob 
+                        beta_r,             # transmission loss per distance
+                        sd_r,               # error on transmission loss model
+                        mu_s,               # (mean) source level
+                        sd_s = NULL,        # standard deviation of source level
+                        noise = NULL,       
+                        SINGLE_SL = TRUE,
                         WITH_NOISE = FALSE) {
   # Get the correct quantile for the normal cdf, given p
   quant <- qnorm(1 - p)
@@ -22,10 +26,11 @@ bufferWidth <- function(p,
 
 bufferWidth(p = 0.01,
             trunc_level = 96,
-            g0 = 0.62,
-            beta_r = 17.36,
-            sd_r = 4.85,
-            mu_s = 165)
+            g0 = 0.53164,
+            beta_r = 19.14683,
+            sd_r = 2.62344,
+            mu_s = 166.62168,
+            sd_s = 5.13997)
 
 # ==============================================================================
 # Create a function that calculates p. for every grid point of the mesh
@@ -87,7 +92,7 @@ library(circular)
 library(raster)
 
 # Get the mesh
-mesh_file <- "Data/alaska_albers_grid_adaptive_levels=2_inner=15k_outer=100k_maxD2C=Inf_maxD2A=100k_area=26318.75_n=1232.csv"
+mesh_file <- "Data/alaska_albers_grid_adaptive_levels=2_inner=10k_outer=50k_maxD2C=Inf_area=8450_n=438.csv"
 mesh <- read.csv(mesh_file)
 
 # Get the detectors
@@ -99,25 +104,33 @@ output <- pDetected(mesh = mesh,
                     detectors = detectors, 
                     trunc_level = 96,
                     min_no_detections = 2,
-                    g0 = 0.551,
-                    beta_r = 17.54,
-                    sd_r = 2.71,
-                    mu_s = 162.2,
-                    sd_s = 4.85,
-                    SINGLE_SL = FALSE)
+                    g0 = 0.61287,
+                    beta_r = 17.00578,
+                    sd_r = 4.20759,
+                    mu_s = 163.73203,
+                    # sd_s = 5.13997,
+                    SINGLE_SL = TRUE)
 
 probs <- data.frame(det_prob = output, mesh)
 
 
 library(ggplot2)
 fig <- ggplot(data = probs) +
-  geom_point(mapping = aes(x = long, y = lat, colour = det_prob >= 0.001), 
+  geom_point(mapping = aes(x = long, y = lat, colour = det_prob >= 0.01), 
              alpha = 0.5, shape = 16) + 
-  labs(colour = "Within 0.1% detection") +
+  labs(colour = "Within 1% detection") +
   coord_equal() + 
   # scale_colour_manual(values = c("darkred", "darkgreen")) +
   geom_point(data = detectors, 
-             mapping = aes(x = long, y = lat), colour = "red")
+             mapping = aes(x = long, y = lat), colour = "red") +
+  theme_minimal() + 
+  ylab("Latitude") +
+  xlab("Longitude (easting)") +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "grey", 
+                                 size = 0.5, 
+                                 linetype = "solid"))
 fig
 
 #### DOES NOT WORK FROM HERE

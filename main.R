@@ -31,7 +31,7 @@ source("Scripts/bowhead whales/llkParallelSmooth.R")
 seed <- 31082010
 sample_size <- 500
 min_no_detections <- 2
-SINGLE_SL <- FALSE
+SINGLE_SL <- TRUE
 WITH_NOISE <- FALSE
 trunc_level <- 96
 BEAR_MIXTURE <- TRUE
@@ -141,7 +141,7 @@ sample_percentage <- nrow(det_hist) / nrow(detections)
 # Density formula specification
 # f_density <- D ~ 1 #s(dist_to_coast, k = 3, fx = TRUE) # + depth
 # f_density <- D ~ s(distance_to_coast, k = 5, fx = TRUE)
-f_density <- D ~ distance_to_coast + distance_to_coast2
+# f_density <- D ~ distance_to_coast + distance_to_coast2
 # f_density <- D ~ s(logdepth, k = 3, fx = TRUE) + s(distance_to_coast, k = 3, fx = TRUE)
 # f_density <- D ~ dist_to_coast + dist_to_coast2 + depth + depth2
 
@@ -182,7 +182,7 @@ if(det_function == "janoschek") {
                      B = log(10), # should be in (0, Inf)
                      Q = log(10)) # should be in (0, Inf)
 } else if (det_function == "simple") { ## STILL NEEDS IMPLEMENTATION AND TRUNCATION
-  par_det_start <- c(g0 = log(0.6 / (1 - 0.6)))
+  par_det_start <- c(g0 = log(0.62 / (1 - 0.62)))
 } else {
   par_det_start <- c(g0 = log(0.8 / (1 - 0.8)),
                      sigma = log(15000))
@@ -194,20 +194,20 @@ par_dens_start <- c("(Intercept)" = 0, "distance_to_coast" = 0, "distance_to_coa
 # par_dens_start <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
 
 # Start values for received level
-par_rl_start <- c(beta_r = log(15),
-                  sd_r = log(4))
+par_rl_start <- c(beta_r = 3,
+                  sd_r = 2)
 
 # Start values for source level
-par_sl_start <- c(mu_s = log(154), # identity
+par_sl_start <- c(mu_s = 5, # identity
                   sd_s = log(8)) # log
 
 # Start values for bearing
 if (BEAR_MIXTURE) {
   par_bear_start <- c(kappa_low = log(5), #log
                       kappa_high = log(5),
-                      mix_par = log(0.1 / (1 - 0.1))) # logit
+                      mix_par = log(0.2 / (1 - 0.2))) # logit
 } else {
-  par_bear_start <- c(kappa = log(5)) #log
+  par_bear_start <- c(kappa = 3) #log
 } 
 
 par_start <- list(par_det = par_det_start,

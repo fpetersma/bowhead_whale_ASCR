@@ -7,9 +7,7 @@
 #### points is would be a two dimensional smooth. 
 
 # for test runs
-# par <- par
-# dat <- dat
-# rm(list = setdiff(ls(), c("dat", "par")))
+# par <- par; dat <- dat;rm(list = setdiff(ls(), c("dat", "par")))
 
 # The 'fast' loglikelihood (not really, but faster than otherwise)
 .llkParallelSmooth <- function(par, dat) {
@@ -35,7 +33,7 @@
   library(raster)
   
   # Define very small error to be added to values
-  cores <- 20
+  cores <- 6
   error <- 0
   smooth <- "none" # other options are "loess" and "gam"
   neg_inf <- -1e16
@@ -391,7 +389,6 @@
           # min_no_detections times for all source levels
           p. <- .detected(probs = det_probs, 
                           min_no_detections = min_no_detections)
-          
           # Run some test whether the data is correct
           if (any(det_probs < 0)) {
             print("At least one element in det_probs is negative!")
@@ -487,6 +484,7 @@
         }
         if (SINGLE_SL) {
           rate <- sum(pred)
+          cat("Rate: ", rate, "\n", sep = "")
         } else {
           rate <- A_s * sum(pred)
         }
@@ -494,6 +492,7 @@
       
       # Derive the probability density for the number of detections given the rate
       llk_n <- dpois(n_call, rate, log = TRUE)
+
       if (llk_n == -Inf | llk_n < neg_inf) llk_n <- neg_inf # set to neg_inf if -Inf since L-BFGS-B does
       # not accept non-real values
       
@@ -765,6 +764,7 @@
         } else {part_bearings <- 0}
         
         part_2 <- part_bearings
+        part_2 <- 0
         
         # Replace -Inf with neg_inf, to avoid NA later on
         part_2[part_2 == -Inf] <- neg_inf
@@ -832,6 +832,13 @@
         part_4[part_4 == -Inf] <- neg_inf
         
         rm(temp)
+        
+        # if (i == 1) {
+        #   cat("part_bearings: ", part_2[1],
+        #       ", part_rl: ", part_3[1],
+        #       ", part_D_and_W: ", part_1[1])
+        # }
+        # part_4 <- 0
         
         #### Add all the parts together and add (variable) grid areas
         total_per_grid <- part_1 + part_2 + part_3 - part_4 + log(A_x$area)
@@ -972,7 +979,7 @@
             part_source_level <- matrix(log(part_source_level), nrow = n_grid, 
                                         ncol = n_sl, byrow = FALSE)
             
-            # Add the two subpart to create part 3
+            # Add the two sub part to create part 3
             part_3 <- part_received_levels + part_source_level
           } else {
             part_3 <- matrix(0, nrow = n_grid, ncol = n_sl)
@@ -1001,6 +1008,7 @@
         part_4[part_4 == -Inf] <- neg_inf
         
         rm(temp)
+
         
         #### Add all the parts together and add the variable grid areas
         total_per_grid_sl <- part_1 + part_2 + part_3 - part_4 +
@@ -1029,7 +1037,7 @@
                             newdata = data.frame(source_levels = source_levels_all))
           } else if (smooth == "none") {pred <- total_per_sl}
           
-          # logSumExp() over the source levels and add the logs of the areas
+          # logSumExp() over the source levels 
           total <- matrixStats::logSumExp(pred) # + log(A_s) + log(A_x$area)
         } else {total <- total_per_sl}
       }
@@ -1041,6 +1049,8 @@
     
     # Sum all the cond llk's for every call to get the total cond llk
     llk_cond <- sum(unlist(cond_llk_call))
+    
+    cat("llk_cond: ", llk_cond, "\n", sep = "")
     
     ########################### Create complete llk ############################
     llk_full <- llk_n + llk_cond
@@ -1129,13 +1139,15 @@
     part_conditional[is.infinite(part_conditional)] <- neg_inf
     # Sum over all the calls
     part_conditional <- sum(part_conditional)
+
+    
     
     ####
     llk_full <- part_full + part_conditional
   }
   # })
   
-  if (TRACE) {cat("The log likelihood is: ", llk_full, "\n", sep = "")}
+  if (TRACE) {cat("The log likelihood is: ", llk_full, " and the llk_n is: ", llk_n, "\n", sep = "")}
   
   return(llk_full)
 }

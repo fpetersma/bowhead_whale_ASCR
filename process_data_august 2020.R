@@ -1,7 +1,7 @@
 # ============================================================================ #
 # "process_data_august 2020.R"                                                 #
 # ---------------------------------------------------------------------------- #
-# Turn new data from 27/08/2020 to a usable format, then writes it to          #
+# Turn new data from 31/08/2010 to a usable format, then writes it to          #
 # csv files.                                                                   #
 # ---------------------------------------------------------------------------- #
 # By: Felix Petersma                                                           #
@@ -13,7 +13,6 @@
 library(tidyverse)
 
 # Define constants =============================================================
-
 # choose whether calls should be filtered by successful localisation
 USE_ONLY_LOC_CALLS <- FALSE 
 
