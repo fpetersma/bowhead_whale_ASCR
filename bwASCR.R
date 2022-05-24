@@ -1,10 +1,5 @@
 # Run for test runs ============================================================
-# par <- par_start
-# rm(list = setdiff(ls(), c("dat", "par")))
-# method = "L-BFGS-B"
-# maxit = 100
-# TRACE = TRUE
-# LSE = TRUE
+# par <- par_start; rm(list = setdiff(ls(), c("dat", "par"))); method = "L-BFGS-B"; maxit = 100; TRACE = TRUE; LSE = TRUE;
 # ==============================================================================
 
 #' Fits an acoustic spatial capture recapture model to bowhead whale call data 
@@ -39,37 +34,10 @@
 #' @export
 bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                    LSE = TRUE) {
-<<<<<<< Updated upstream
-  
-  # Description: 
-  #   An acoustic spatial capture-recapture model to the data, using a list of 
-  #   start values. Functionality was added to allow for different optimising 
-  #   methods, different number of iterations, to trace to progress or not, and 
-  #   to use the likelihood with or without the LSE-trick. It is not possible to 
-  #   provide start values for the parameters of regression splines, but all 
-  #   other parameters require start values.
   
   # REMEMBER TO UPDATE CERTAIN BITS DEPENDING ON WHICH llk...R SCRIPT WILL BE USED
   # LINES TO UPDATE: 80 (which pars to include), 159 (which confidence bounds to use),
   #                  146 (which llk....R script to use).
-  
-  # Inputs:
-  #   dat       - [list] 
-  #   param     - [list] 
-  #   method    - [character] 
-  #   maxit     - [scalar] 
-  #   trace     - [logical] 
-  #   LSE       - [logical]
-  
-  # Outputs:
-  #   output    - [S3.Object] containing the results of the fitting, the raw 
-  #               results from optim() and the original data inputs for 
-  #               completeness.
-=======
-  # REMEMBER TO UPDATE CERTAIN BITS DEPENDING ON WHICH llk...R SCRIPT WILL BE USED
-  # LINES TO UPDATE: 80 (which pars to include), 159 (which confidence bounds to use),
-  #                  146 (which llk....R script to use).
->>>>>>> Stashed changes
   
   ################## Load libraries and perform input checks ###################
   library(dplyr)
@@ -82,6 +50,22 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   if (class(dat) != "list") {
     stop()
   }
+  
+  COMPLETE_DATA <- all(names(data) %in% c("det_hist",
+                                          "detectors",
+                                          "cov_density",
+                                          "received_levels",
+                                          # "noise_call",
+                                          # "noise_random",
+                                          # "source_levels",
+                                          "A_x",
+                                          # "A_s",
+                                          "f_density",
+                                          "det_function",
+                                          # "bearings",
+                                          "min_no_detections"))
+  
+  if (!COMPLETE_DATA) {stop("'dat' argument is incomplete!")}
   
   # Use normal MLE standard error?
   USE_MLE_SD <- FALSE
@@ -101,6 +85,10 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   
   dat[["USE_BEARINGS"]] <- USE_BEARINGS
   dat[["USE_RL"]] <- USE_RL
+  
+  # Set mixture for bearings to false if bearings are not used to avoid NULL comparison in if statements
+  if (!USE_BEARINGS) {dat$BEAR_MIXTURE <- FALSE}
+  BEAR_MIXTURE <- dat$BEAR_MIXTURE
   
   # Check which detection function is to be used, and make sure detection rate
   # or probability at distance = 0 is correctly named. 
@@ -123,7 +111,10 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   names(par) <- gsub(".*\\.", "", names(par))
   ## TO KEEP SOME PARAMETERS FIXED, USE LINE BELOW TO SELECT WHICH PARAMETERS TO ESTIMATE
   # par <- par[names(par) %in% c("g0", "sigma" , "kappa", "(Intercept)", "dist_to_coast", "dist_to_coast2")] # USE ONLY FOR SIMULATIONS
-  # par <- par[!names(par) %in% c("sd_r")] # USE ONLY FOR SINGLE SOURCE LEVEL
+  
+  if (dat$SINGLE_SL) {
+    par <- par[!names(par) %in% c("sd_s")] # USE ONLY FOR SINGLE SOURCE LEVEL
+  }
   
   # Create a matrix of distances
   distances <- pointDistance(p1 = dat$cov_density[, c("long", "lat")], 
@@ -143,12 +134,13 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   }
   dat["CONSTANT_DENSITY"] <- CONSTANT_DENSITY
   
-  # Not sure if scaling is necessary
+  # Not sure if scaling is necessary ===========================================
   cov_density_scaled <- subset(dat$cov_density, select = -area)
-  cov_density_scaled[, -c(1, 2)] <- scale(subset(cov_density_scaled, 
-                                                 select = -c(long, lat)))
+  # cov_density_scaled[, -c(1, 2)] <- scale(subset(cov_density_scaled, 
+  #                                                select = -c(long, lat)))
+  # ============================================================================
   
-  # Turn the bearings to radians, as the llk calculation uses radians 
+  # Turn the bearings to radians, as the log likelihood function uses radians 
   if (USE_BEARINGS) {
     bearings_deg <- circular(dat$bearings,
                              units = "degrees",
@@ -189,7 +181,7 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   dat[["TRACE"]] <- TRACE
   
   if (LSE) {
-    fn <- .llkLSEParallelSmooth
+    fn <- .llkParallelSmooth
   } else {
     stop("Non LSE version not available yet.")
     #fn <- .loglikelihood_with_bearings
@@ -208,19 +200,115 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
                 col.names = names(par))
   }
   
+  # ============================================================================
+  # Define bounds for optim()
+  # ============================================================================
+  if (dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & !BEAR_MIXTURE) {
+    lower_bounds <- c(g0 = -10, 
+                      kappa = log(0), # -Inf
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 10, 
+                      kappa = log(10000),
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  } else if (!dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & !BEAR_MIXTURE) {
+    lower_bounds <- c(g0 = -10, 
+                      kappa = log(0), # -Inf
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      sd_s = log(0.01),
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 10, 
+                      kappa = log(10000),
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      sd_s = log(50),
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  } else if (dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & BEAR_MIXTURE) {
+    lower_bounds <- c(g0 = -10, 
+                      kappa_low = log(0), # -Inf
+                      kappa_high = log(0), # -Inf
+                      mix_par = -10,
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 10, 
+                      kappa_low = log(10000),
+                      kappa_high = log(10000),
+                      mix_par = 10,
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  } else if (!dat$SINGLE_SL & dat$det_function == "simple" & USE_BEARINGS & BEAR_MIXTURE) {
+    lower_bounds <- c(g0 = -10, 
+                      kappa_low = log(0), # -Inf
+                      kappa_high = log(0), # -Inf
+                      mix_par = -10,
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      sd_s = log(0.01),
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 10, 
+                      kappa_low = log(10000),
+                      kappa_high = log(10000),
+                      mix_par = 10,
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      sd_s = log(50),
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  } else if (dat$SINGLE_SL & dat$det_function == "simple" & !USE_BEARINGS) {
+    lower_bounds <- c(g0 = -10, 
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 10, 
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  } else if (!dat$SINGLE_SL & dat$det_function == "simple" & !USE_BEARINGS) {
+    lower_bounds <- c(g0 = -10, 
+                      beta_r = log(1), 
+                      sd_r = log(0.01),
+                      mu_s = log(50), 
+                      sd_s = log(0.01),
+                      rep(-Inf, 100)) # this gives 0 on log and logit link
+    upper_bounds <- c(g0 = 10, 
+                      beta_r = log(50), 
+                      sd_r = log(50),
+                      mu_s  = log(300), 
+                      sd_s = log(50),
+                      rep(Inf, 100)) # this gives 2.7e10 on log and 1 on logit
+  }
+  
+  
   ######################## Fit using optim() ###################################
   
   fit_duration <- system.time({
     # Use bounds to limit search space to sensible space
-    result <- optim(par = par, fn = fn, method = method, hessian = USE_MLE_SD,
-                    control = list(maxit = maxit, fnscale = -1, trace = TRACE, 
-                                   REPORT = 1, factr = 1e10),
-                    # lower = c(U = -5, B = -5, Q = log(0.01), kappa = log(5), 
-                    #           beta_r = log(1), mu_s = log(50), sd_r = log(0.01),
-                    #           sd_s = log(0.01), rep(-Inf, 100)), # this gives 0 on log and logit link
-                    # upper = c(U = 5, B = 5, Q = log(10000), kappa = log(100), 
-                    #           beta_r = log(50), mu_s  = log(300), sd_r = log(50),
-                    #           sd_s = log(50), rep(Inf, 100)), # this gives 2.7e10 on log and 1 on logit
+    result <- optim(par = par, 
+                    fn = fn, 
+                    method = method, 
+                    hessian = USE_MLE_SD,
+                    control = list(maxit = maxit, 
+                                   fnscale = -1, 
+                                   trace = TRACE,
+                                   factr = 1e10, # The convergence factor (lower is more precise). defaults to 1e7, which is a tolerance of roughly 1e-8
+                                   REPORT = 1),
+                    lower = lower_bounds, 
+                    upper = upper_bounds,
                     dat = dat)
   })
   
@@ -320,8 +408,8 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   design <- model.matrix(gam_fit)
   
   if (USE_MLE_SD) {
-    N <- .total_N(D = D, A = dat$A_x$area, n = n,
-                  covariance_matrix = covariance_matrix, design = design)
+    N <- .totalN(D = D$density, A = dat$A_x$area, n = n,
+                 covariance_matrix = covariance_matrix, design = design)
   } else {
     N <- c(estimate = sum(dat$A_x$area * D$density))
   }
@@ -337,14 +425,26 @@ bwASCR <- function(dat, par, method = "L-BFGS-B", maxit = 100, TRACE = TRUE,
   cat("Finished the SCR fitting.\n")
   cat(paste0("Total number of calls was estimated at ", round(N["estimate"]), "\n"))
   
-  output <- list(N = N, estimates = estimates, real = real, 
-                 n_par = K, AIC = aic, AICc = aicc, BIC = bic,
-                 start_values = start_values, method = method, hessian = hess,
-                 covariance_matrix = covariance_matrix, density = D, 
-                 det_function = dat$det_function, design_matrix = design, 
-                 ESA = esa, optim_result = result, fit_duration = fit_duration, 
-                 data = dat, par_hist = read.csv("parameter_history.csv", 
-                                                 header = TRUE))
+  if (TRACE) {
+    output <- list(N = N, estimates = estimates, real = real, 
+                   n_par = K, AIC = aic, AICc = aicc, BIC = bic,
+                   start_values = start_values, method = method, hessian = hess,
+                   covariance_matrix = covariance_matrix, density = D, 
+                   det_function = dat$det_function, design_matrix = design, 
+                   ESA = esa, optim_result = result, fit_duration = fit_duration, 
+                   data = dat, par_hist = read.csv(paste0("parameter_history_", 
+                                                          dat$f_density[3], ".csv"), 
+                                                   header = TRUE))
+  } else {
+    output <- list(N = N, estimates = estimates, real = real, 
+                   n_par = K, AIC = aic, AICc = aicc, BIC = bic,
+                   start_values = start_values, method = method, hessian = hess,
+                   covariance_matrix = covariance_matrix, density = D, 
+                   det_function = dat$det_function, design_matrix = design, 
+                   ESA = esa, optim_result = result, fit_duration = fit_duration, 
+                   data = dat, par_hist = NA)
+  }
+  
   class(output) <- "bwASCR_model"
   
   return(output)

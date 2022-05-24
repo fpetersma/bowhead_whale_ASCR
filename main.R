@@ -1,47 +1,51 @@
-################################################################################
-####                              "main.R"                                  ####
-####  --------------------------------------------------------------------  ####
-####  This script contains  all the required functionality for the fitting. ####
-####                                                                        ####
-#### ---------------------------------------------------------------------- ####
-#### By:        Felix Thomas Petersma                                       ####
-#### Purpose:   Developed as part of the MSc Statistics dissertation at     ####
-####            the University of St Andrews [2018/2019]                    ####
-#### License:   MIT                                                         ####
-################################################################################
-## Load required libraries
+# ============================================================================ #
+#                                 "main.R"                                     #
+# ---------------------------------------------------------------------------- #
+#     This script contains  all the required functionality for the fitting.    #
+#                                                                              #
+# ---------------------------------------------------------------------------- #
+# By:        Felix Thomas Petersma                                             #
+# Purpose:   Developed as part of the MSc Statistics dissertation at           #
+#            the University of St Andrews [2018/2019]                          #
+# License:   MIT                                                               #
+# ============================================================================ #
+
+# Load required libraries
 library("readr")
 library("matrixStats")
 library("truncnorm")
 
-# run the script that sources all functions
-source("Scripts/Bowhead Whales/hidden_functions.R")
-source("Scripts/Bowhead Whales/plotDensity.R")
-source("Scripts/Bowhead Whales/simulateData.R")
-# source("Scripts/Bowhead Whales/bwASCR.R")
-# source("Scripts/Bowhead Whales/llkLSEParallelSmooth.R")
+# Run the script that sources all functions
+source("Scripts/bowhead whales/hidden_functions.R")
+source("Scripts/bowhead whales/plotDensity.R")
+source("Scripts/bowhead whales/simulateData.R")
+source("Scripts/bowhead whales/bwASCR.R")
+source("Scripts/bowhead whales/llkParallelSmooth.R")
 
-source("Scripts/Bowhead Whales/bwASCRNoSL.R")
-source("Scripts/Bowhead Whales/llkLSEParallelSmoothNoSL.R")
+# source("Scripts/Bowhead Whales/bwASCRNoSL.R")
+# source("Scripts/Bowhead Whales/llkLSEParallelSmoothNoSL.R")
 
 ########################### Define constants ###################################
 
 # max_depth <- 150 # Declare the max depth for the depth covariate to improve stability
-seed <- 31082020
+seed <- 31082010
 sample_size <- 500
 min_no_detections <- 2
+SINGLE_SL <- TRUE
+WITH_NOISE <- FALSE
+trunc_level <- 96
+BEAR_MIXTURE <- TRUE
 
 ############################ Load real data ####################################
 
-detections <- read.csv("Data/JABES paper/detections_31-08-2020_all.csv")
-bearings <- read.csv("Data/JABES paper/bearings_31-08-2020_all.csv")
-# weights <- read.csv("Data/Revised data with different cut-offs [22-11-19]/[PT] weights_history_S5Y10_0.02.csv")
-received_levels <- read.csv("Data/JABES paper/received_levels_31-08-2020_all.csv")
-noise_call <- read.csv("Data/JABES paper/noise_31-08-2020_all.csv")
+detections <- read.csv("Data/detections_31-08-2010_all.csv")
+bearings <- read.csv("Data/bearings_31-08-2010_all.csv")
+received_levels <- read.csv("Data/received_levels_31-08-2010_all.csv")
+noise_call <- read.csv("Data/noise_31-08-2010_all.csv") # 99% quantile of noise is 95.6
 
 DASAR <- as.data.frame(read_tsv("Data/DASARs.txt"))
 
-mesh_file <- "Data/JABES paper/grid_adaptive_levels=3_bounds=10k-60k_maxD2C=100k_maxD2A=200k_area=44145.6_n=180+139+146=465.csv"
+mesh_file <- "Data/alaska_albers_grid_adaptive_levels=2_inner=10k_outer=50k_maxD2C=Inf_area=8450_n=440.csv"
 
 # Create fake random sample of noise based on noise_call
 noise_random <- noise_call + rnorm(length(noise_call), 2, 1)
@@ -52,10 +56,11 @@ noise_random <- noise_random[sample(1:nrow(noise_random), 100), ]
 mesh <- read.csv(mesh_file)
 cov_density <- mesh
 cov_density$depth <- abs(cov_density$depth) # make depth positive 
-cov_density$depth[cov_density$depth == 0] <- 0.01
+# cov_density$depth[cov_density$depth == 0] <- 0.01
 cov_density[["depth2"]] <-  cov_density$depth ^ 2
 cov_density[["logdepth"]] <- log(cov_density$depth)
 cov_density[["logdepth2"]] <- cov_density$logdepth ^ 2
+cov_density[["distance_to_coast"]] <- cov_density$distance_to_coast / 1000 # from m to km
 cov_density[["distance_to_coast2"]] <- cov_density$distance_to_coast ^ 2
 
 ######################### Create detectors #####################################
@@ -77,44 +82,64 @@ detectors <- DASAR[DASAR$year == 2010 & DASAR$site == 5, c("long", "lat")]
 # received_levels <- received_levels[!too_few_detections, ]
 # snr <- snr[!too_few_detections, ]
 
-# Set seed for reproducibility
-set.seed(seed)
-
 
 #===========# Run next section to filter on received levels #==================#
 
-sufficient_snr <- received_levels - noise_call >= 15 # get indices 
-sufficient_snr[is.na(sufficient_snr)] <- FALSE
-
-detections <- sufficient_snr * 1
-enough_dets <- Rfast::rowsums(detections) > 1
-
-# only keep calls with enough detections, after truncation at 15dB snr
-sufficient_snr <- sufficient_snr[enough_dets, ]
-detections <- detections[enough_dets, ]
-
-bearings <- as.matrix(bearings)[enough_dets, ]
-bearings[!sufficient_snr] <- NA
-
-noise_call <- as.matrix(noise_call)[enough_dets, ]
-
-received_levels <- as.matrix(received_levels)[enough_dets, ]
-received_levels[!sufficient_snr] <- NA
+if (WITH_NOISE) {
+  sufficient_snr <- received_levels - noise_call >= trunc_level # get indices 
+  sufficient_snr[is.na(sufficient_snr)] <- FALSE
+  
+  detections <- sufficient_snr * 1
+  enough_dets <- Rfast::rowsums(detections) > 1
+  
+  # only keep calls with enough detections, after truncation at 15dB snr
+  sufficient_snr <- sufficient_snr[enough_dets, ]
+  detections <- detections[enough_dets, ]
+  
+  bearings <- as.matrix(bearings)[enough_dets, ]
+  bearings[!sufficient_snr] <- NA
+  
+  noise_call <- as.matrix(noise_call)[enough_dets, ]
+  
+  received_levels <- as.matrix(received_levels)[enough_dets, ]
+  received_levels[!sufficient_snr] <- NA
+} else if (!WITH_NOISE) {
+  sufficient_rl <- received_levels  >= trunc_level # get indices 
+  sufficient_rl[is.na(sufficient_rl)] <- FALSE
+  
+  detections <- sufficient_rl * 1
+  enough_dets <- Rfast::rowsums(detections) > 1
+  
+  # only keep calls with enough detections, after truncation at 15dB snr
+  sufficient_rl <- sufficient_rl[enough_dets, ]
+  detections <- detections[enough_dets, ]
+  
+  bearings <- as.matrix(bearings)[enough_dets, ]
+  bearings[!sufficient_rl] <- NA
+  
+  noise_call <- as.matrix(noise_call)[enough_dets, ]
+  
+  received_levels <- as.matrix(received_levels)[enough_dets, ]
+  received_levels[!sufficient_rl] <- NA
+}
 
 #==============================================================================#
 
+# Set seed for reproducibility
+set.seed(seed)
+
 # Detection history
-index <- sample(1:nrow(detections), sample_size)
-det_hist <- detections[index, ]
-bearings_hist <- bearings[index, ]
-received_levels_hist <- received_levels[index, ]
-noise_call_hist <- noise_call[index, ]
+# index <- sample(1:nrow(detections), sample_size)
+det_hist <- detections#[index, ]
+bearings_hist <- bearings#[index, ]
+received_levels_hist <- received_levels#[index, ]
+noise_call_hist <- noise_call#[index, ]
 
 # get sample percentage
 sample_percentage <- nrow(det_hist) / nrow(detections)
 
 # Density formula specification
-f_density <- D ~ 1 #s(dist_to_coast, k = 3, fx = TRUE) # + depth
+# f_density <- D ~ 1 #s(dist_to_coast, k = 3, fx = TRUE) # + depth
 # f_density <- D ~ s(distance_to_coast, k = 5, fx = TRUE)
 # f_density <- D ~ distance_to_coast + distance_to_coast2
 # f_density <- D ~ s(logdepth, k = 3, fx = TRUE) + s(distance_to_coast, k = 3, fx = TRUE)
@@ -125,21 +150,25 @@ f_density <- D ~ 1 #s(dist_to_coast, k = 3, fx = TRUE) # + depth
 A_s <- 3
 A_x <- subset(mesh, select = c(area, long, lat))
 
-det_function <- "probit"
+det_function <- "simple"
 
-dat <- list(det_hist = as.matrix(det_hist),
+dat <- list(det_hist = as.matrix(detections),
             detectors = as.matrix(detectors),
             cov_density = as.data.frame(cov_density),
             received_levels = as.matrix(received_levels_hist),
             noise_call = as.matrix(noise_call),
             noise_random = as.matrix(noise_random),
-            source_levels = seq(from = 120 + (A_s / 2), to = 180, by = A_s),
+            source_levels = seq(from = 140 + (A_s / 2), to = 180, by = A_s),
             A_x = A_x,
             A_s = A_s,
             f_density = f_density,
             det_function = det_function,
             bearings = as.matrix(bearings_hist),
-            min_no_detections = min_no_detections)
+            min_no_detections = min_no_detections,
+            SINGLE_SL = SINGLE_SL,
+            WITH_NOISE = WITH_NOISE,
+            BEAR_MIXTURE = BEAR_MIXTURE,
+            trunc_level = trunc_level)
 
 
 # Start values for detection function
@@ -153,27 +182,33 @@ if(det_function == "janoschek") {
                      B = log(10), # should be in (0, Inf)
                      Q = log(10)) # should be in (0, Inf)
 } else if (det_function == "simple") { ## STILL NEEDS IMPLEMENTATION AND TRUNCATION
-  par_det_start <- c(g0 = log(0.3 / (1 - 0.3)))
+  par_det_start <- c(g0 = log(0.62 / (1 - 0.62)))
 } else {
   par_det_start <- c(g0 = log(0.8 / (1 - 0.8)),
                      sigma = log(15000))
 }
 
 # Start values for density function
-par_dens_start <- c("(Intercept)" = -2)
-# par_dens_start <- c("(Intercept)" = -3, "distance_to_coast" = 2, "distance_to_coast2" = -2.5)
+# par_dens_start <- c("(Intercept)" = 0)
+par_dens_start <- c("(Intercept)" = 0, "distance_to_coast" = 0, "distance_to_coast2" = 0)
 # par_dens_start <- c("(Intercept)" = -3, "depth" = 0.5, "depth2" = -2)
 
 # Start values for received level
-par_rl_start <- c(beta_r = log(15),
-                  sd_r = log(4))
+par_rl_start <- c(beta_r = 3,
+                  sd_r = 2)
 
 # Start values for source level
-par_sl_start <- c(mu_s = log(154), # identity
+par_sl_start <- c(mu_s = 5, # identity
                   sd_s = log(8)) # log
 
 # Start values for bearing
-par_bear_start <- c(kappa = log(10)) # log
+if (BEAR_MIXTURE) {
+  par_bear_start <- c(kappa_low = log(5), #log
+                      kappa_high = log(5),
+                      mix_par = log(0.2 / (1 - 0.2))) # logit
+} else {
+  par_bear_start <- c(kappa = 3) #log
+} 
 
 par_start <- list(par_det = par_det_start,
                   par_bear = par_bear_start,
@@ -181,13 +216,18 @@ par_start <- list(par_det = par_det_start,
                   par_sl = par_sl_start,
                   par_dens = par_dens_start)
 
+
+
 ######################## Run bw_scr() on subset data ##########################
 method = "L-BFGS-B"
-maxit = 100
-TRACE = 6
+maxit = 500
+TRACE = 1
 LSE = TRUE
+
 
 system.time({
   bw <- bwASCR(dat = dat, par = par_start, method = method, maxit = maxit,
                TRACE = TRACE, LSE = LSE)
 })
+
+

@@ -1,24 +1,7 @@
-<<<<<<< Updated upstream
-################################################################################
-####  "process_data_august 2020.R"                                          ####
-####  --------------------------------------------------------------------  ####
-####  Turn new data from 27/08/2020 to a usable format, then writes it to   ####
-####  csv files.                                                            ####
-####  --------------------------------------------------------------------  ####
-####  By: Felix Petersma                                                    ####
-####  Last update: 27/08/2020                                               ####
-################################################################################
-
-#### Load libraries ############################################################
-
-library(tidyverse)
-
-#### Read in data ##############################################################
-=======
 # ============================================================================ #
 # "process_data_august 2020.R"                                                 #
 # ---------------------------------------------------------------------------- #
-# Turn new data from 27/08/2020 to a usable format, then writes it to          #
+# Turn new data from 31/08/2010 to a usable format, then writes it to          #
 # csv files.                                                                   #
 # ---------------------------------------------------------------------------- #
 # By: Felix Petersma                                                           #
@@ -30,14 +13,12 @@ library(tidyverse)
 library(tidyverse)
 
 # Define constants =============================================================
-
 # choose whether calls should be filtered by successful localisation
 USE_ONLY_LOC_CALLS <- FALSE 
 
 # Read in data =================================================================
->>>>>>> Stashed changes
 
-df <- read_csv("../JABES paper/Data/Data August 2020/Site5_Automated_2010.1_2minDASAR_250kmMaxRange_InfmUncertainty_20to300Hz_TL_PowerLaw15dB_20200826T151454.txt",
+df <- read_csv("Data/Data August 2020/Site5_Automated_2010.1_2minDASAR_250kmMaxRange_InfmUncertainty_20to300Hz_TL_PowerLaw15dB_20200826T151454.txt",
                col_names = c("n_sensors", 
                              "date_time_origin", 
                              "UTM_easting_origin",
@@ -57,7 +38,6 @@ df <- read_csv("../JABES paper/Data/Data August 2020/Site5_Automated_2010.1_2min
                                     rep(1:6, each = 9)),
                              "NA"))
 
-<<<<<<< Updated upstream
 #### Start modifying data ######################################################
 
 ## Extract date and time from date-time
@@ -99,7 +79,6 @@ write.csv(noise, "../JABES paper/Data/noise_31-08-2020_successful-loc.csv", row.
 write.csv(snr, "../JABES paper/Data/snr_31-08-2020_successful-loc.csv", row.names = F)
 
 write.csv(df_full, "../JABES paper/Data/all-data_successful-loc.csv", row.names = F)
-=======
 # Start modifying data =========================================================
 
 # extract date and time from date-time
@@ -141,4 +120,3 @@ write.csv(detections, "../JABES paper/Data/detections_31-08-2020_all.csv", row.n
 write.csv(received_levels, "../JABES paper/Data/received_levels_31-08-2020_all.csv", row.names = F)
 write.csv(noise, "../JABES paper/Data/noise_31-08-2020_all.csv", row.names = F)
 write.csv(df_full, "../JABES paper/Data/all-data_all.csv", row.names = F)
->>>>>>> Stashed changes
