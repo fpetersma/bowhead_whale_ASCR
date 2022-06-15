@@ -1,6 +1,6 @@
 ## =============================================================================
 ## Creating plots for parameter estimates, and other results presented in the 
-## JABES manuscript. 
+## manuscript. 
 ##
 ## First created on 21/02/2021 by Felix T Petersma
 ## =============================================================================
@@ -177,13 +177,13 @@ p_bw <- ggplot(data = df_melt, mapping =  aes(x = scenario, y = RE)) +
                fill = "grey75", 
                alpha = 1) +
   stat_summary(fun = mean, geom = "point", shape = 16) +
-  labs(y = "Relative error (%)", 
-       x = "Simulation scenario") +
+  labs(y = expression(paste("Relative error in ", hat(N)," (%)")), 
+       x = "Simulation scenario and model used for analysis") +
   geom_hline(yintercept = 0, colour = "black", linetype = "dashed") +
   geom_vline(xintercept = 5.5, colour = "grey", linetype = "79") +
   # theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.5)) +
-  scale_x_discrete(labels = c("1.1", "1.2", "1.3", "1.4", "1.5", 
-                              "2.1", "2.2", "2.3", "2.4", "2.5")) +
+  scale_x_discrete(labels = c("1a", "1b", "1c", "1d", "1e", 
+                              "2a", "2b", "2c", "2d", "2e")) +
   scale_y_continuous(breaks = seq(from = -300, to = 900, by = 100),
                      labels = c("CV", "RB", seq(from = -100, to = 900, by = 100))) +
   theme_light() +
