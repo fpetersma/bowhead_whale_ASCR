@@ -17,7 +17,7 @@ best_model <- fits[[31]]
 rm(fits)
 
 ## Load the 999 fits on bootstrapped data
-load("Real data output/bootstraps on best model (model 31) - unfinished/results_1-999.RData")
+load("Real data output/bootstraps on best model (model 31)/results_1-999.RData")
 
 total <- total_results # rename
 rm(total_results)
