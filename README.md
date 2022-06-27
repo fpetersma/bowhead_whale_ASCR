@@ -31,10 +31,6 @@ The main scripts of interest are:
 - nll.R
 	
 	Derives the negative log likelihood using ascrRcpp.
-
-- 35_fits_real_data_SL=100-220.Rdata
-	
-	An Rdata file containing the results of 35 ASCR models with varying density specifications.
 	
 
 ### Other scripts
@@ -47,3 +43,25 @@ The main scripts of interest are:
 	
 	Processes the raw data.
 	
+
+### Data files
+
+- 35_fits_real_data_SL=100-220.Rdata
+	
+	An Rdata file containing the results of 35 ASCR models with varying density specifications.
+
+- detections_31-08-2010_all.csv
+
+	A matrix of detections for every included call for every detector that was involved with the detection, where TRUE indicates a positive detection;
+
+- received_levels_31-08-2010_all.csv
+
+	A matrix of received sound levels for every included call for every detector that was involved with the detection, and NA otherwise;
+
+- bearings_31-08-2010_all.csv
+
+	A matrix of bearings for every included call for every detector that was involved with the detection, and -1 otherwise;
+
+- DASARs.txt
+
+	Some information on the DASARs.
