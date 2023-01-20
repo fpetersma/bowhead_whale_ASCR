@@ -43,7 +43,7 @@ print(table)
 ## uncertainty.
 ## -----------------------------------------------------------------------------
 
-df <- read.csv("Real data output/summary_estimates_bootstraps_model_31.csv")
+df <- read.csv("Real data output/summary_estimates_bootstraps_model_33.csv")
 output <- base::subset(df, select = c("point", "sd", "cv"))
 row.names(output) <- df$parameter
 table <- kable(x = output, 
@@ -58,7 +58,7 @@ print(table)
 
 
 ## Do the same for the real data
-df <- read.csv("Real data output/summary_real_bootstraps_model_31.csv")
+df <- read.csv("Real data output/summary_real_bootstraps_model_33.csv")
 output <- base::subset(df, select = c("point", "sd", "cv"))
 row.names(output) <- df$parameter
 table <- kable(x = output, 
@@ -68,3 +68,59 @@ table <- kable(x = output,
                label = "tab:best_model_results",
                caption = "Estimates for all quantities of interested for the best model, with Monte Carlo uncertainty estimates.")
 print(table)
+
+## -----------------------------------------------------------------------------
+## Create a table of the results from the bootstraps for the supp. materials
+## -----------------------------------------------------------------------------
+
+load("Real data output/fits_1_35_nlminb_n=443.RData")
+fit_overview <- data.frame(ID = 1:length(fits), 
+                           density_model = sapply(fits, function(fit) Reduce(paste, deparse(fit$dat$f_density))),
+                           N_hat = sapply(fits, function(fit) fit$N_total),
+                           convergence = sapply(fits, function(fit) fit$fit_res$convergence),
+                           n_par = sapply(fits, function(fit) length(fit$fit_res$par)),
+                           llk = sapply(fits, function(fit) -fit$fit_res$objective),
+                           AIC = sapply(fits, function(fit) fit$aic),
+                           AICc = sapply(fits, function(fit) fit$aicc),
+                           BIC = sapply(fits, function(fit) fit$bic))
+
+fit_overview <- fit_overview[order(fit_overview$AIC), ]
+output <- base::subset(fit_overview, select = c("ID", "density_model", "N_hat", 
+                                                "n_par", "AIC"))
+table <- kable(x = output, 
+               format = "latex",
+               digits = 3,
+               col.names = c("ID", "Density Model", "N_hat", "#Par", "AIC"),
+               label = "tab:results-from-the-999-bootstraps", row.names = FALSE)
+## Print table to copy to LaTeX document on Overleaf
+print(table)
+
+
+### And now the parameter estimates
+df <- read.csv("Real data output/summary_estimates_bootstraps_model_33.csv")
+output_e <- base::subset(df, select = -c(8))
+output_e$link <- c("iden.", "logit", rep("log", 6), "logit", rep("log", 11))
+output_e <- output_e[, c(1, 9, 2:8)]
+
+df <- read.csv("Real data output/summary_real_bootstraps_model_33.csv")
+output_r <- base::subset(df, select = -c(8))
+output_r$link <- c("iden.", "logit", rep("log", 6), "logit")
+output_r <- output_r[, c(1, 9, 2:8)]
+
+# output <- rbind(output_r, output_e[-c(1:9), ])
+output <- output_e
+
+output_sig <- output
+output_sig[, c(3:9)] <- signif(output_sig[, c(3:9)], 2)
+
+table <- kable(x = output, 
+               format = "latex",
+               digits = 5,
+               col.names = c("Par.", "Link", "Est.", "LCL", "UCL", "LRCL", "URCL", 
+                             "SD", "CV(%)"),
+               label = "tab:best_model_overview_results")
+## Print table to copy to LaTeX document on Overleaf
+print(table)
+
+
+df <- read.csv("Real data output/overview_estimates_bootstraps_model_33.csv")
