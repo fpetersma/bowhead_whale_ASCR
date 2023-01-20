@@ -1,16 +1,16 @@
 ## =============================================================================
-## calculatedDetectedCalls.R
-## =============================================================================
-
+## calculatedExpectedDetectedCalls.R
+##
 ## This script derives the expected number of call detection histories that 
-## involved only 1 sensor for model 31
+## involved only 1 sensor for model 33 (and other scenarios, for fun)
+## =============================================================================
 
 ## =============================================================================
 ## 1. LOAD DATA AND LIBRARIES
 ## -----------------------------------------------------------------------------
-load("Real data output/35_fits_real_data_SL=100-220.RData")
+load("Real data output/fits_1_35_nlminb_n=443.RData")
 
-fit <- fits[[31]]
+fit <- fits[[33]]
 
 pars <- fit$real_par
 dat <- fit$dat
