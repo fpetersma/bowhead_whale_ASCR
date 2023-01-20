@@ -4,7 +4,7 @@
 
 ## Load files to try things
 mesh <- read.csv("Data/alaska_albers_grid_adaptive_levels=2_inner=10k_outer=50k_maxD2C=Inf_area=8450_n=438.csv")
-load(file =  "Real data output/35_fits_real_data_SL=100-220.RData" )
+load(file =  "Real data output/fits_1_35_nlminb_n=443.RData" )
 # d <- fit_obj_varDens$D
 
 plotDensityAlbers <- function(d, mesh, name = "density_plot") {
@@ -70,13 +70,12 @@ plotDensityAlbers <- function(d, mesh, name = "density_plot") {
   
   range(mesh$long.1)
   range(mesh$lat.1)
+  
   ## ===========================================================================
   ## Print current mesh
   ## ===========================================================================
   
-  
   theme_set(theme_bw())
-  
   
   world <- ne_countries(scale = "large", returnclass = "sf")
   class(world)
@@ -87,19 +86,23 @@ plotDensityAlbers <- function(d, mesh, name = "density_plot") {
                                                            y = lat.1, 
                                                            colour = density), 
                size = 5.5,
-               alpha = 0.7,
+               # alpha = 0.7,
                shape = 15) + 
     geom_point(data = mesh[d$area == 6.25, ],  mapping = aes(x = long.1, 
                                                              y = lat.1, 
                                                              colour = density), 
                size = 2.6,
-               alpha = 0.7,
+               # alpha = 0.7,
                shape = 15) + 
     # scale_colour_distiller(type = "seq",
     #                       direction = 1,
     #                       palette = "Greys") +
-    guides(alpha = "none") +
-    scale_colour_gradient(low = "grey85", high = "grey0") + 
+    # guides(alpha = "none") +
+    # scale_colour_gradientn(colours =c("grey85", "grey85", "grey30", "grey0"),values = c(0, 0.01, 0.1, 1)) + 
+    scale_colour_gradient(low = alpha("grey90", 0.8),  
+                          high = alpha("grey0", 0.8), 
+                          trans= "sqrt", 
+                          name = "Calls/km2") +
     # scale_fill_viridis_c(option = "plasma", trans = "sqrt") +
     
     # The look of the map
@@ -111,7 +114,8 @@ plotDensityAlbers <- function(d, mesh, name = "density_plot") {
                            pad_y = unit(0.5, "in"), 
                            style = north_arrow_fancy_orienteering) + 
     coord_sf(xlim = c(320000, 490000), ylim = c(2220000, 2380000), crs = aaeac) +
-    theme(panel.grid.major = element_line(color = gray(.5), linetype = "dashed", size = 0.5), 
+    theme(panel.grid.major = element_line(color = gray(.5), linetype = "dashed", 
+                                          linewidth = 0.5), 
           panel.background = element_rect(fill = "white")) +
     annotate(geom = "text", x = 350000, y = 2350000, 
              label = "Beaufort Sea", 
@@ -123,21 +127,25 @@ plotDensityAlbers <- function(d, mesh, name = "density_plot") {
              fontface = "italic", 
              color = "grey22", 
              size = 6) +
-    labs(colour = "Calls/km2") + 
+    # labs(colour = "Calls/km2") + 
     geom_point(data = DASAR, 
                mapping = aes(x = long.1, y = lat.1),
                shape = 17, 
                size = 2, show.legend = TRUE) + 
     # ggtitle("Map of study area, with the density surface overlayed") +
     xlab("Longitude") + 
-    ylab("Latitude")
-    
+    ylab("Latitude") #+ geom_point(data=mesh[c(290, 275), ], 
+                                  # mapping=aes(x = long.1, y = lat.1),
+                                  # colour = 'red') + geom_point(data=mesh[c(277,278,279,289, 291), ], 
+                                  #                              mapping=aes(x = long.1, y = lat.1),
+                                  #                              colour = 'blue')
+                                  # 
   
   return(p)
 }
 
-for (ii in 31) {
-  p <- plotDensityAlbers(d = fits[[31]]$D, mesh = mesh)
+for (ii in 33) {
+  p <- plotDensityAlbers(d = fits[[ii]]$D, mesh = mesh)
   
   ggsave(filename = paste0("grey_map_", ii, ".pdf"), plot = p,  height = 12, width = 8.39)
   ggsave(filename = paste0("grey_map_", ii, ".png"), plot = p, width = 8.275, height = 7, dpi = "retina") # these dimensions work!

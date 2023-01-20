@@ -8,14 +8,15 @@
 mesh <- read.csv("Data/alaska_albers_grid_adaptive_levels=2_inner=10k_outer=50k_maxD2C=Inf_area=8450_n=438.csv")
 
 ## Load bootstraps
-load("Real data output/bootstraps on best model (model 31)/results_1-999.RData")
+load("Real data output/results_model_33_1_999.RData")
 
 ## Load best model
-load("Real data output/35_fits_real_data_SL=100-220.RData")
+# load("Real data output/fits_1_21_nlminb_reltol=1e-8_n=443.RData")
+load("Real data output/fits_1_35_nlminb_n=443.RData")
 
 ## Combine and clean
-results <- c(fits[31], total_results)
-rm(fits, total_results)
+results <- c(results, fits[33])
+rm(fits)
 
 ## EVERY FIT CONTAINS A DENSITY MAP, SO EXTRACT THE STANDARD ERROR FOR EVERY ONE
 densities <- sapply(results, function(x) x$D$density)
@@ -29,7 +30,7 @@ se_densities <- data.frame(area = results[[1]]$D$area,
 ## Is a relative measure of spread, sensitive to outliers
 cv_densities <- data.frame(area = results[[1]]$D$area,
                            spread = apply(densities, 1, function(r) {
-                             sd(r) / mean(r)
+                             sd(r) / mean(r) * 100
                            }))
 
 iqr_densities <- data.frame(area = results[[1]]$D$area,
@@ -45,6 +46,8 @@ qcd_densities <- data.frame(area = results[[1]]$D$area,
                               qt <- quantile(r)
                               qcd <- (qt[4] - qt[2]) / (qt[4] + qt[2])
                             }))
+# turn NA values to 0
+qcd_densities$spread[is.nan(qcd_densities$spread)] <- 0
 
 ## Create function similar to the one in plotDensityAlbersBW.R
 plotSE <- function(spread, mesh, legend_title) {
@@ -87,8 +90,8 @@ plotSE <- function(spread, mesh, legend_title) {
   DASAR_coord_albers <- spTransform(DASAR_coord, CRS=CRS(aaeac))
   DASAR <- data.frame(DASAR, DASAR_coord_albers)
   
-  # Add density to mesh file
-  mesh$density <- spread$spread
+  # Add spread to mesh file
+  mesh$spread <- spread$spread
   
   ## Convert coordinates to Albers 
   mesh_coord <- dplyr::select(mesh, c(long, lat))  
@@ -117,20 +120,25 @@ plotSE <- function(spread, mesh, legend_title) {
   
   p <- ggplot(data = world) +
     # First plot the points
-    geom_point(data = mesh[spread$area == 25, ],  mapping = aes(x = long.1, 
-                                                           y = lat.1, 
-                                                           colour = density), 
+    geom_point(data = mesh[spread$area == 25, ],  mapping = aes(x = long.1,
+                                                           y = lat.1,
+                                                           colour = spread),
                size = 5.5,
-               alpha = 0.7,
-               shape = 15) + 
-    geom_point(data = mesh[spread$area == 6.25, ],  mapping = aes(x = long.1, 
-                                                             y = lat.1, 
-                                                             colour = density), 
+               # alpha = 0.7,
+               shape = 15) +
+    geom_point(data = mesh[spread$area == 6.25, ],  mapping = aes(x = long.1,
+                                                             y = lat.1,
+                                                             colour = spread),
                size = 2.6,
-               alpha = 0.7,
-               shape = 15) + 
-    guides(alpha = "none") +
-    scale_colour_gradient(low = "grey85", high = "grey0") + 
+               # alpha = 0.7,
+               shape = 15) +
+    # guides(alpha = "none") +
+    # scale_colour_gradient(low = alpha("grey85", 0.8), 
+    #                       high = alpha("grey0", 0.8), # Define alpha here instead of above to have legend match it
+    #                       name = legend_title) +
+    scale_colour_gradient(low = alpha("grey90", 0.8),  
+                          high = alpha("grey0", 0.8),  
+                          name = legend_title) +
     # scale_fill_viridis_c(option = "plasma", trans = "sqrt") +
     
     # The look of the map
@@ -142,8 +150,12 @@ plotSE <- function(spread, mesh, legend_title) {
                            pad_y = unit(0.5, "in"), 
                            style = north_arrow_fancy_orienteering) + 
     coord_sf(xlim = c(320000, 490000), ylim = c(2220000, 2380000), crs = aaeac) +
-    theme(panel.grid.major = element_line(color = gray(.5), linetype = "dashed", size = 0.5), 
+    theme(panel.grid.major = element_line(color = gray(.5), 
+                                          linetype = "dashed", 
+                                          linewidth = 0.5), 
           panel.background = element_rect(fill = "white")) +
+          # panel.background = element_rect(fill = NA),
+          # panel.ontop = TRUE) +
     annotate(geom = "text", x = 350000, y = 2350000, 
              label = "Beaufort Sea", 
              fontface = "italic", 
@@ -154,7 +166,7 @@ plotSE <- function(spread, mesh, legend_title) {
              fontface = "italic", 
              color = "grey22", 
              size = 6) +
-    labs(colour = legend_title) + 
+    # labs(colour = legend_title) + 
     geom_point(data = DASAR, 
                mapping = aes(x = long.1, y = lat.1),
                shape = 17, 
@@ -162,30 +174,40 @@ plotSE <- function(spread, mesh, legend_title) {
     # ggtitle("Map of study area, with the density surface overlayed") +
     xlab("Longitude") + 
     ylab("Latitude")
-  
+  # p$layers <- c(geom_point(data = mesh[spread$area == 25, ],  mapping = aes(x = long.1,
+  #                                                                                         y = lat.1,
+  #                                                                                         colour = density),
+  #                                        size = 5.5,
+  #                                        alpha = 0.7,
+  #                                        shape = 15) +
+  #                            geom_point(data = mesh[spread$area == 6.25, ],  mapping = aes(x = long.1,
+  #                                                                                          y = lat.1,
+  #                                                                                          colour = density),
+  #                                       size = 2.6,
+  #                                       alpha = 0.7,
+  #                                       shape = 15),
+  #                          p$layers)
+
   
   return(p)
 }
 
 ## Print the plot
 plotSE(spread = se_densities, mesh = mesh, legend_title = "SE")
-ggsave("SE_map_31.eps", width = 7.9, height = 12, dpi = "retina") # these dimensions work!
+ggsave("SE_map_8.eps", width = 7.9, height = 12, dpi = "retina") # these dimensions work!
 
-plotSE(spread = cv_densities, mesh = mesh, legend_title = "CV")
-ggsave("CV_map_31.png", width = 8.0, height = 12, dpi = "retina") # these dimensions work!
+plotSE(spread = cv_densities, mesh = mesh, legend_title = "CV (%)")
+ggsave("CV_map_8.png", width = 8.0, height = 12, dpi = "retina") # these dimensions work!
 
 plotSE(spread = iqr_densities, mesh = mesh, legend_title = "IQR")
-ggsave("IQR_map_31.png", width = 8.1, height = 12, dpi = "retina") # these dimensions work!
+ggsave("IQR_map_8.png", width = 8.1, height = 12, dpi = "retina") # these dimensions work!
 
-plotSE(spread = qcd_densities, mesh = mesh, legend_title = "QCD")
-ggsave("QCD_map_31.png", width = 8.1, height = 12, dpi = "retina") # these dimensions work!
-
+qcd_plot <- plotSE(spread = qcd_densities, mesh = mesh, legend_title = "QCD")
+ggsave("QCD_map_8.png", width = 8.1, height = 12, dpi = "retina") # these dimensions work!
 
 ## Make one figure
-load("C:/Users/felix/OneDrive - University of St Andrews/Documents/University of St Andrews/PhD/Bowhead Whales/JABES paper/qcd_plot.RData")
-load("C:/Users/felix/OneDrive - University of St Andrews/Documents/University of St Andrews/PhD/Bowhead Whales/JABES paper/density_plot.RData")
-
-
+load("C:/Users/felix/OneDrive - University of St Andrews/Documents/University of St Andrews/PhD/Bowhead Whales/JABES paper/qcd_plot_8.RData")
+load("C:/Users/felix/OneDrive - University of St Andrews/Documents/University of St Andrews/PhD/Bowhead Whales/JABES paper/density_plot_8.RData")
 
 two_maps <- gridExtra::grid.arrange(p, qcd_plot, ncol = 2)
-ggsave(plot = two_maps, filename = "two_maps_31.eps", width = 16.15, height = 10, dpi = "retina") # these dimensions work!
+ggsave(plot = two_maps, filename = "images/two_maps_qcd_33.png", width = 16.15, height = 10, dpi = "retina") # these dimensions work!

@@ -4,6 +4,8 @@
 ## Felix Petersma
 ##
 ## Created on 02/09/2021
+##
+## Update 18/11/2022: potentially have to do a rerun with on localised calls.
 ## =============================================================================
 
 
@@ -57,28 +59,43 @@ library(circular)
 library(tidyverse)
 library(Rcpp)       # for combining R and cpp
 library(parallel)   # for parallel processing
-library(mgcv)
+library(mgcv)       # for smooths
+library(pbapply)
 
 ## Constants
 A_s <- 3
-FIXED_SL <- FALSE
+FIXED_SL <- TRUE
 USE_BEARINGS <- 2
 WITH_NOISE <- FALSE
 trunc_level <- 96
 
-## Load the real data
-detections <- read.csv("Data/detections_31-08-2010_all.csv")
-bearings <- read.csv("Data/bearings_31-08-2010_all.csv")
-received_levels <- read.csv("Data/received_levels_31-08-2010_all.csv")
 
-DASAR <- as.data.frame(read_tsv("Data/DASARs.txt"))
+## Load the real data
+detections <- read.csv("Data/detections_31-08-2010_successful-loc.csv")
+bearings <- read.csv("Data/bearings_31-08-2010_successful-loc.csv")
+received_levels <- read.csv("Data/received_levels_31-08-2010_successful-loc.csv")
+
+DASAR <- as.data.frame(readr::read_tsv("Data/DASARs.txt"))
 
 mesh <- read.csv("Data/alaska_albers_grid_adaptive_levels=2_inner=10k_outer=50k_maxD2C=Inf_area=8450_n=438.csv")
+# 
+# fits <- list()
+# for (model_index in 22) {
 
-fits <- list()
+## Create parallel processing
+cl <- makeCluster(21)
+clusterExport(cl, varlist = ls())
 
-for (model_index in 1:length(models)) {
-  # for (f_density in models) {
+model_index <- 8
+
+fits <- pblapply(1:21, function(model_index) {
+  # model_index <- 33
+  cat("Evaluating model:", model_index, "\n")
+  ## Libraries
+  library(circular)   # for von Mises distribution
+  library(mgcv)       # for smooths
+  library(dplyr)      # for piping
+  
   ## Extract the current density  model specification
   f_density <- models[[model_index]]
   
@@ -126,7 +143,7 @@ for (model_index in 1:length(models)) {
     detections <- sufficient_rl * 1
     enough_dets <- Rfast::rowsums(detections) > 1
     
-    # only keep calls with enough detections, after truncation at 96db RL
+    # only keep calls with enough detections, after truncation at 15dB snr
     sufficient_rl <- sufficient_rl[enough_dets, ]
     detections <- detections[enough_dets, ]
     
@@ -149,8 +166,8 @@ for (model_index in 1:length(models)) {
   
   # Create a matrix of distances
   distances <- raster::pointDistance(p1 = mesh[, c("long", "lat")], 
-                                     p2 = detectors[, c("long", "lat")], 
-                                     lonlat = TRUE)
+                             p2 = detectors[, c("long", "lat")], 
+                             lonlat = TRUE)
   
   
   bearings_deg <- circular(bearings,
@@ -232,19 +249,26 @@ for (model_index in 1:length(models)) {
   source("Scripts/bowhead whales/nllR.R")
   
   ## =============================================================================
-  
+
   ## =============================================================================
   ## 3. RUN THE OPTIMISER 
   ## -----------------------------------------------------------------------------
-  # res <- optim(par = parameters, fn = nllR, dat = data_obj, method = "BFGS",
-  #              control = list(trace = 6, REPORT = TRUE))
+  # system.time({
+  # res <- optim(par = parameters, fn = nllR, dat = data_obj, method = "Nelder-Mead",
+  #              hessian = FALSE,
+  #              # lower = -50,
+  #              # upper = 50,
+  #              control = list(trace = 6, 
+  #                             REPORT = TRUE,
+  #                             maxit = 2000))
   res <- nlminb(start = parameters, objective = nllR, dat = data_obj,
                 # lower = -50,
                 # upper = 50,
-                control = list(trace = 1, 
-                               eval.max = 1000, 
+                control = list(trace = 1,
+                               rel.tol = 1e-8,
+                               eval.max = 1000,
                                iter.max = 500))
-  
+  # })
   ## =============================================================================
   #  Truth:             0.405     2.701   0.693     5.011   0.000       2.944   -2.197   -1        2       -1.5
   #  35:     4263.9473: 0.452523  2.71824 0.700802  5.01431 0.00945608  2.82123 -2.38982 -1.13384  2.48271 -2.22861
@@ -274,12 +298,12 @@ for (model_index in 1:length(models)) {
   fit_obj$N_total <- sum(fit_obj$D$N)
   fit_obj$par_hist <- read.csv(file = paste0("parameter_history_Rcpp_", 
                                              f_density[3], ".csv"))
-  
-  ## =============================================================================
-  
-  fits[[model_index]] <- fit_obj
-}
 
+  ## =============================================================================
+  ## Below no longer need for pbapply version
+  # fits[[model_index]] <- fit_obj
+  return(fit_obj)
+}, cl = cl); parallel::stopCluster(cl);
 
 ## =============================================================================
 ## CREATE FINAL TABLE
@@ -290,10 +314,25 @@ fit_overview <- data.frame(ID = 1:length(fits),
                            N_hat = sapply(fits, function(fit) fit$N_total),
                            convergence = sapply(fits, function(fit) fit$fit_res$convergence),
                            n_par = sapply(fits, function(fit) length(fit$fit_res$par)),
-                           llk = sapply(fits, function(fit) fit$fit_res$objective),
+                           llk = sapply(fits, function(fit) -fit$fit_res$objective),
                            AIC = sapply(fits, function(fit) fit$aic),
                            AICc = sapply(fits, function(fit) fit$aicc),
                            BIC = sapply(fits, function(fit) fit$bic))
 
 fit_overview <- fit_overview[order(fit_overview$AIC), ]
 ## =============================================================================
+
+## Extract hessians if required [added on 01/12/22 after suggestion by Len]
+source("Scripts/bowhead whales/nllR.R")
+hessian <- numDeriv::hessian(func = nllR,
+                             x = fits[[8]]$fit_res$par,
+                             dat = fits[[8]]$dat)
+vcov <- solve(-hessian, tol = 3e-49)
+
+# alternative to numDeriv... pracma!
+hessian <- pracma::hessian(f = nllR,
+                           x0 = fits[[33]]$fit_res$par,
+                           dat = fits[[33]]$dat)
+
+vcov <- solve(-hessian)
+
