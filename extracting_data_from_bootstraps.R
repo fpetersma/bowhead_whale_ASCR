@@ -1,6 +1,7 @@
 ## ========================================================================== ##
 ## In this script, I extract all relevant info from bootstraps on model 31.   ##
-## These extracts are then stored in .csv files which are easier to work with.##                                                                 ##
+## These extracts are then stored in .csv files which are easier to work with.##  
+## [15/12/22] updated for model 8 with n=443
 ## ========================================================================== ##
 
 ## Turn off scientific notation
@@ -10,23 +11,24 @@ options(scipen=999)
 ## 1. Load the data and prepare for extraction
 ## -----------------------------------------------------------------------------
 
-## Load model 31
-load("Real data output/33_fits_real_data_SL=100-220.RData")
-best_model <- fits[[31]]
+## Load model 33
+load("Real data output/fits_1_35_nlminb_n=443.RData")
+best_model <- fits[[33]]
 
 rm(fits)
 
 ## Load the 999 fits on bootstrapped data
-load("Real data output/bootstraps on best model (model 31)/results_1-999.RData")
+load("Real data output/results_model_33_1_999.RData")
 
-total <- total_results # rename
-rm(total_results)
+total <- results # rename
+rm(results)
 
 ## Add the best model in position 1000
+# total[[1000]] <- best_model
 total[[1000]] <- best_model
 
 ## The bootstraps are missing the mesh, so add that for completeness
-for (i in seq(999)) {
+for (i in seq(1000)) {
   x <- total[[i]]
   x$mesh <- total[[1000]]$mesh
   total[[i]] <- x
@@ -50,13 +52,19 @@ df_estimates <- data.frame(N = NA,
                            log_kappa_high = NA,
                            logit_mix_bear = NA,
                            beta_intercept = NA,
-                           beta_depth = NA,
-                           beta_depth2 = NA,
+                           beta_sdepth_1 = NA,
+                           beta_sdepth_2 = NA,
+                           beta_sdepth_3 = NA,
+                           beta_sdepth_4 = NA,
+                           beta_sdepth_5 = NA,
                            beta_sd2c_1 = NA,
                            beta_sd2c_2 = NA,
                            beta_sd2c_3 = NA,
                            beta_sd2c_4 = NA,
                            beta_sd2c_5 = NA)
+df_estimates <- matrix(NA, ncol = 1 + length(total[[1]]$fit_res$par), nrow = 1)
+colnames(df_estimates) <- c("N", names(total[[1]]$fit_res$par))
+df_estimates <- as.data.frame(df_estimates)
 
 ## Loop through all bootstraps and the best model 
 for (i in seq(1000)) {
@@ -150,25 +158,25 @@ summary_real[["cv"]] <- summary_real$sd / abs(apply(df_real, 2, mean)) * 100
 ## -----------------------------------------------------------------------------
 
 write.csv(df_estimates, 
-          file = "Real data output/overview_estimates_bootstraps_model_31.csv", 
+          file = "Real data output/overview_estimates_bootstraps_model_33.csv", 
           row.names = FALSE)
 
 write.csv(df_rel_estimates, 
-          file = "Real data output/overview_rel_estimates_bootstraps_model_31.csv", 
+          file = "Real data output/overview_rel_estimates_bootstraps_model_33.csv", 
           row.names = FALSE)
 
 write.csv(summary_estimates, 
-          file = "Real data output/summary_estimates_bootstraps_model_31.csv", 
+          file = "Real data output/summary_estimates_bootstraps_model_33.csv", 
           row.names = FALSE)
 
 write.csv(df_real, 
-          file = "Real data output/overview_real_bootstraps_model_31.csv", 
+          file = "Real data output/overview_real_bootstraps_model_33.csv", 
           row.names = FALSE)
 
 write.csv(df_rel_real, 
-          file = "Real data output/overview_rel_real_bootstraps_model_31.csv", 
+          file = "Real data output/overview_rel_real_bootstraps_model_33.csv", 
           row.names = FALSE)
 
 write.csv(summary_real, 
-          file = "Real data output/summary_real_bootstraps_model_31.csv", 
+          file = "Real data output/summary_real_bootstraps_model_33.csv", 
           row.names = FALSE)
