@@ -113,7 +113,7 @@ single_dets <- rep(1, nrow(singletons_above_tr))
 ## So far, we have the original singletons. However, we also have the newly created
 ## singletons once we truncate the data on 96dB received level. 
 
-received_levels <- read.csv("Data/received_levels_31-08-2010_all.csv")
+received_levels <- read.csv("Data/received_levels_31-08-2010_successful-loc.csv")
 
 sufficient_rl <- received_levels  >= 96 # get indices 
 sufficient_rl[is.na(sufficient_rl)] <- FALSE
@@ -130,10 +130,10 @@ table(multi_dets)
 dets_involved <- as.data.frame(table(c(single_dets, multi_dets)))
 
 ##### THIS IS THE POINT WHERE I WANTED TO GET:
-### 1 - 1493
-### 2 - 284
-### 3 - 111
-### 4 - 37
+### 1 - 1417
+### 2 - 272
+### 3 - 108
+### 4 - 35
 ### 5 - 23
 ### 6 - 5
 
@@ -149,9 +149,10 @@ ggplot(data = dets_involved, mapping =  aes(x = n_DASAR, y = Freq)) +
   scale_x_continuous(breaks = 1:6) +
   geom_text(aes(label = paste0(percentages, "%")), 
             position=position_dodge(width = 0.9), vjust = -0.25) +
-  geom_line(data = data.frame(x = c(0.55, 1.45), y = c(587, 587)),
+  geom_line(data = data.frame(x = c(0.55, 1.45), y = c(570, 570)),
             mapping = aes(x = x, y = y), linetype = "dashed", colour = "black") +
   ylim(c(0,1600))
+
 
 
 
