@@ -10,41 +10,49 @@
 
 
 ###### Create models and start values ################################
-models <- list(D ~ 1,
-               D ~ distance_to_coast + distance_to_coast2,
-               D ~ distance_to_coast + distance_to_coast2 + distance_to_coast3,
-               D ~ depth,
-               D ~ depth + depth2,
-               D ~ logdepth,
-               D ~ logdepth + depth + depth2,
-               D ~ logdepth + distance_to_coast + distance_to_coast2 + distance_to_coast3,
-               D ~ logdepth + depth + distance_to_coast + distance_to_coast2,
-               D ~ logdepth + depth + depth2 + distance_to_coast,
-               D ~ depth + distance_to_coast,
-               D ~ depth + distance_to_coast + distance_to_coast2,
-               D ~ depth + depth2 + distance_to_coast,
-               D ~ depth + depth2 + distance_to_coast + distance_to_coast2,
-               D ~ depth + depth2 + distance_to_coast + distance_to_coast2 + distance_to_coast3,
-               D ~ s(depth, k = 3, fx = TRUE),
-               D ~ s(depth, k = 4, fx = TRUE),
-               D ~ s(depth, k = 5, fx = TRUE),
-               D ~ s(depth, k = 6, fx = TRUE),
-               D ~ s(depth, k = 7, fx = TRUE),
-               D ~ s(depth, k = 8, fx = TRUE),
-               D ~ s(depth, k = 6, fx = TRUE) + distance_to_coast,
-               D ~ s(depth, k = 6, fx = TRUE) + distance_to_coast + distance_to_coast2,
-               D ~ s(distance_to_coast, k = 3, fx = TRUE),
-               D ~ s(distance_to_coast, k = 4, fx = TRUE),
-               D ~ s(distance_to_coast, k = 5, fx = TRUE),
-               D ~ s(distance_to_coast, k = 6, fx = TRUE),
-               D ~ s(distance_to_coast, k = 7, fx = TRUE),
-               D ~ s(distance_to_coast, k = 8, fx = TRUE),
-               D ~ s(distance_to_coast, k = 6, fx = TRUE) + depth,
-               D ~ s(distance_to_coast, k = 6, fx = TRUE) + depth + depth2,
-               D ~ s(depth, k = 4, fx = TRUE) + s(distance_to_coast, k = 4, fx = TRUE),
-               D ~ s(depth, k = 6, fx = TRUE) + s(distance_to_coast, k = 6, fx = TRUE),
-               D ~ distance_to_coast + depth + depth:distance_to_coast,
-               D ~ distance_to_coast + distance_to_coast2 + depth + depth2 + depth:distance_to_coast)
+models <- list(
+  D ~ 1,
+  D ~ distance_to_coast + distance_to_coast2,
+  D ~ distance_to_coast + distance_to_coast2 + distance_to_coast3,
+  D ~ depth,
+  D ~ depth + depth2,
+  D ~ logdepth,
+  D ~ logdepth + depth + depth2,
+  D ~ logdepth + distance_to_coast + distance_to_coast2 + 
+    distance_to_coast3,
+  D ~ logdepth + depth + distance_to_coast + distance_to_coast2,
+  D ~ logdepth + depth + depth2 + distance_to_coast,
+  D ~ depth + distance_to_coast,
+  D ~ depth + distance_to_coast + distance_to_coast2,
+  D ~ depth + depth2 + distance_to_coast,
+  D ~ depth + depth2 + distance_to_coast + distance_to_coast2,
+  D ~ depth + depth2 + distance_to_coast + distance_to_coast2 + 
+    distance_to_coast3,
+  D ~ s(depth, k = 3, fx = TRUE),
+  D ~ s(depth, k = 4, fx = TRUE),
+  D ~ s(depth, k = 5, fx = TRUE),
+  D ~ s(depth, k = 6, fx = TRUE),
+  D ~ s(depth, k = 7, fx = TRUE),
+  D ~ s(depth, k = 8, fx = TRUE),
+  D ~ s(depth, k = 6, fx = TRUE) + distance_to_coast,
+  D ~ s(depth, k = 6, fx = TRUE) + distance_to_coast + 
+    distance_to_coast2,
+  D ~ s(distance_to_coast, k = 3, fx = TRUE),
+  D ~ s(distance_to_coast, k = 4, fx = TRUE),
+  D ~ s(distance_to_coast, k = 5, fx = TRUE),
+  D ~ s(distance_to_coast, k = 6, fx = TRUE),
+  D ~ s(distance_to_coast, k = 7, fx = TRUE),
+  D ~ s(distance_to_coast, k = 8, fx = TRUE),
+  D ~ s(distance_to_coast, k = 6, fx = TRUE) + depth,
+  D ~ s(distance_to_coast, k = 6, fx = TRUE) + depth + depth2,
+  D ~ s(depth, k = 4, fx = TRUE) + 
+    s(distance_to_coast, k = 4, fx = TRUE),
+  D ~ s(depth, k = 6, fx = TRUE) + 
+    s(distance_to_coast, k = 6, fx = TRUE),
+  D ~ distance_to_coast + depth + depth:distance_to_coast,
+  D ~ distance_to_coast + distance_to_coast2 + depth + depth2 + 
+    depth:distance_to_coast
+)
 
 # models <- list(D ~ distance_to_coast + depth + depth:distance_to_coast)
 

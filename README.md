@@ -4,7 +4,7 @@ Contains all code used to do analyse the case study data, run the simulation stu
 
 The main scripts of interest are:
 
-- simulate_1000_data_set.R
+- simulate_1000_data_sets.R
 
 	Simulates data that can be used for simulation studies. It uses simulate_data_Rcpp.R, and the data was used for the simulation study.
 	
@@ -15,6 +15,10 @@ The main scripts of interest are:
 - varying_fits_to_real_data.R
 	
 	This script fits 35 models
+
+- bootstrap_real_data.R
+
+	This scripts creates 999 bootstrapped data sets, and fits the best model to all.
 	
 - create_grid_Albers.R
 	
@@ -46,19 +50,19 @@ The main scripts of interest are:
 
 ### Data files
 
-- 35_fits_real_data_SL=100-220.Rdata
+- fits_1_35_nlminb_n=443.Rdata
 	
 	An Rdata file containing the results of 35 ASCR models with varying density specifications.
 
-- detections_31-08-2010_all.csv
+- detections_31-08-2010_successful_loc.csv
 
 	A matrix of detections for every included call for every detector that was involved with the detection, where TRUE indicates a positive detection;
 
-- received_levels_31-08-2010_all.csv
+- received_levels_31-08-2010_successful_loc.csv
 
 	A matrix of received sound levels for every included call for every detector that was involved with the detection, and NA otherwise;
 
-- bearings_31-08-2010_all.csv
+- bearings_31-08-2010_successful_loc.csv
 
 	A matrix of bearings for every included call for every detector that was involved with the detection, and -1 otherwise;
 
