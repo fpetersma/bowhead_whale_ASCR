@@ -3,7 +3,7 @@
 ## ========================================================================== ##
 
 ## Create 1000 simulations by using code from simulate_data_Rcpp.R
-simulated_data <- lapply(1:3, function(sim_i) {
+simulated_data <- lapply(1:1000, function(sim_i) {
   # source("Scripts/Bowhead Whales/simulate_data_Rcpp.R")
   ## =============================================================================
   ## This script simulates data that can be used to test model accuracy.
